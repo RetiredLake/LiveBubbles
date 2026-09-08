@@ -3,6 +3,21 @@
 All releases are beta software. Versions before v0.2.0.0 are retained as legacy
 builds and may contain bugs fixed by later releases.
 
+## v0.3.2.0 LiveBubbles
+
+- Renames the displayed app to LiveBubbles while preserving installation identity,
+  credentials, namespaces, pinned-chat activation, and update endpoints.
+- Adds a separate notification background component using the BlueBubbles
+  Socket.IO endpoint and Windows socket broker; it connects after normal sign-in.
+- Adds private-by-default native toasts, unread badges/Live Tiles, per-chat mute,
+  a notification toggle, local test notification, and reconnect control.
+- Adds notification deduplication, read/visible-chat suppression, bounded state,
+  network recovery, and safe disable/reset handling.
+- Resolves toast activation for chats outside the current history filter.
+- Preserves the existing message/media client, rendering, sends, saves, and shares.
+- Repairs SDK discovery for the moved development environment.
+- Real Lumia background-delivery, battery, and upgrade validation remains required.
+
 ## v0.3.1.2 Beta
 
 - Fixes the message action menu failing to open with `Arg_ArgumentException` by using the explicit classic UWP flyout placement supported by the stable client.
@@ -29,7 +44,7 @@ builds and may contain bugs fixed by later releases.
 - Kept local unread tracking active when server read receipts are disabled.
 - Fixed message and media context menus so desktop right-click no longer opens overlapping menus or crashes.
 - Fixed touch-and-hold Copy and Save menus closing before an action could be selected on Windows 10 Mobile.
-- Updated the credits link to the WpBlueBubbles GitHub project.
+- Updated the credits link to the LiveBubbles GitHub project.
 
 ### Coming soon
 

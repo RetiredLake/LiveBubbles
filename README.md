@@ -1,8 +1,8 @@
-# WpBlueBubbles
+# LiveBubbles
 
-![BlueBubbles Beta logo](src/WpBlueBubbles/Assets/Square150x150Logo.scale-200.png)
+![LiveBubbles logo](src/WpBlueBubbles/Assets/Square150x150Logo.scale-200.png)
 
-WpBlueBubbles is an unofficial, native classic UWP client for connecting Windows
+LiveBubbles (formerly WpBlueBubbles) is an unofficial, native classic UWP client for connecting Windows
 10 Mobile and Windows PCs to a [BlueBubbles](https://bluebubbles.app/) server.
 It brings a Microsoft Messenger-inspired interface to Windows Phone while using
 the same C#/XAML application package on desktop Windows.
@@ -24,9 +24,11 @@ the same C#/XAML application package on desktop Windows.
 - Share target, contact activation, media saving, and per-chat Start tiles.
 - Optional outbound read receipts, disabled by default.
 
-Notifications and Live Tile updates are intentionally disabled in the current
-beta. The proposed WNS notification architecture is documented in
-[docs/notifications-v0.3-plan.md](docs/notifications-v0.3-plan.md).
+The v0.3.2.0 development source adds automatic notifications through the existing
+BlueBubbles connection, with native toasts, unread badges, Live Tiles, per-chat
+mute, and optional previews. No Firebase/WNS/relay setup is required from users.
+Background wake and delivery remain best-effort until real Lumia validation is complete.
+See [notification architecture and validation](docs/notifications-v0.3-plan.md).
 
 ## Requirements
 
@@ -44,7 +46,7 @@ beta. The proposed WNS notification architecture is documented in
 2. On Windows PC, right-click `Install.ps1` and choose **Run with PowerShell**.
 3. On Lumia, trust `01-Trust-retiredlake.cer`, install every package from
    `Dependencies\arm`, then install the `.appxbundle`.
-4. Launch BlueBubbles Beta and enter the server URL/password or scan its setup QR.
+4. Launch the installed client and enter the server URL/password or scan its setup QR.
 
 Release ZIPs contain one complete `WpBlueBubbles_<version>_Test` folder. Keep its
 `Dependencies` directory beside the bundle. See [PATCH_NOTES.md](PATCH_NOTES.md)
@@ -66,13 +68,13 @@ testing should be performed on real hardware.
 
 The client currently uses BlueBubbles REST endpoints for server metadata, chat
 and message queries, text/media sending, attachment downloads, chat creation,
-availability, read state, group actions, and deletion. A minimal Socket.IO path
-is used to stop typing because BlueBubbles Server 1.9.9 has a defective HTTP
+availability, read state, group actions, and deletion. A separate Socket.IO connection handles notifications. The original minimal
+Socket.IO path is still used to stop typing because BlueBubbles Server 1.9.9 has a defective HTTP
 stop-typing handler.
 
 The app does **not** implement edit, unsend, message scheduling, reactions, or
 other modern iMessage-only features. Supporting older iMessage, RCS, and SMS
-clients takes priority until notifications are complete.
+clients takes priority while notifications are validated.
 
 ## Privacy And Safety
 
@@ -84,7 +86,7 @@ clients takes priority until notifications are complete.
 
 ## Status
 
-The current release is **v0.2.2.0 Beta**. Builds from v0.1.6.0 through v0.1.9.9
+The current release is **v0.3.2.0 LiveBubbles**, based on v0.3.1.2. Builds from v0.1.6.0 through v0.1.9.9
 are published as legacy betas for testing and historical preservation.
 
 The v0.2 series stores growing per-chat state in files rather than the
@@ -105,6 +107,16 @@ share sheet deterministically, and always opens the destination conversation or
 returns safely to Chats.
 
 Developed by [retiredlake.com](https://retiredlake.com/).
+
+## Development checks
+
+Use Visual Studio 2019 and the original dependency versions. `Directory.Build.props`
+provides a local SDK discovery fallback for a missing 32-bit SDK registry path.
+Notification logic lives in `LiveBubbles.Notifications`; message/media processing
+remains in the original client. Offline checks are in `tests/Notifications`.
+The public repository and label are LiveBubbles; package identity, namespaces,
+vault keys, and pinned chat IDs remain compatible with WpBlueBubbles. GitHub's
+repository redirect keeps older update clients pointed at the renamed project.
 
 ## License
 

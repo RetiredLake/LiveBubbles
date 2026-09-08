@@ -46,9 +46,11 @@ namespace WpBlueBubbles
                 catch (System.Exception ex)
                 {
                     WriteStartupError(ex);
-                    frame.Content = new TextBlock { Text = "BlueBubbles could not start:\r\n\r\n" + ex, TextWrapping = TextWrapping.Wrap };
+                    frame.Content = new TextBlock { Text = "LiveBubbles could not start:\r\n\r\n" + ex, TextWrapping = TextWrapping.Wrap };
                 }
             }
+            var page = frame.Content as MainPage;
+            if (page != null && page.IsClientReady && !string.IsNullOrWhiteSpace(PendingChatGuid)) page.OpenChatFromNotification(TakePendingChatGuid());
             Window.Current.Activate();
         }
 
@@ -112,7 +114,7 @@ namespace WpBlueBubbles
             catch { }
         }
 
-        private void OnSuspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e) { }
+        private void OnSuspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e) { LiveBubbles.Notifications.NotificationBridge.SetActiveChat(null); }
 
         internal string TakePendingChatGuid()
         {

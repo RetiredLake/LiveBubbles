@@ -1,9 +1,10 @@
-﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.34729.46
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpBlueBubbles", "src\WpBlueBubbles\WpBlueBubbles.csproj", "{79F60ED4-A1A8-4791-BAFD-03DD8F46C983}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiveBubbles.Notifications", "src\LiveBubbles.Notifications\LiveBubbles.Notifications.csproj", "{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +16,18 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Debug|ARM.ActiveCfg = Debug|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Debug|ARM.Build.0 = Debug|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Debug|x86.ActiveCfg = Debug|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Debug|x86.Build.0 = Debug|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Debug|x64.ActiveCfg = Debug|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Debug|x64.Build.0 = Debug|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Release|ARM.ActiveCfg = Release|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Release|ARM.Build.0 = Release|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Release|x86.ActiveCfg = Release|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Release|x86.Build.0 = Release|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Release|x64.ActiveCfg = Release|AnyCPU
+		{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}.Release|x64.Build.0 = Release|AnyCPU
 		{79F60ED4-A1A8-4791-BAFD-03DD8F46C983}.Debug|ARM.ActiveCfg = Debug|ARM
 		{79F60ED4-A1A8-4791-BAFD-03DD8F46C983}.Debug|ARM.Build.0 = Debug|ARM
 		{79F60ED4-A1A8-4791-BAFD-03DD8F46C983}.Debug|ARM.Deploy.0 = Debug|ARM

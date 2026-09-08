@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <Platform Condition="'$(Platform)' == ''">AnyCPU</Platform>
+    <ProjectGuid>{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}</ProjectGuid>
+    <OutputType>winmdobj</OutputType>
+    <RootNamespace>LiveBubbles.Notifications</RootNamespace>
+    <AssemblyName>LiveBubbles.Notifications</AssemblyName>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
+    <TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion>
+    <TargetPlatformMinVersion>10.0.15063.0</TargetPlatformMinVersion>
+    <MinimumVisualStudioVersion>14</MinimumVisualStudioVersion>
+    <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{A5A43C5B-DE2A-4C0C-9213-0A381AF9435A};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <OutputPath>bin\$(Platform)\$(Configuration)\</OutputPath>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UWP</DefineConstants>
+    <Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="NotificationPolicy.cs" />
+    <Compile Include="WebSocketWire.cs" />
+    <Compile Include="BrokerConnection.cs" />
+    <Compile Include="NotificationStorage.cs" />
+    <Compile Include="NotificationPresenter.cs" />
+    <Compile Include="NotificationRuntime.cs" />
+    <Compile Include="NotificationBridge.cs" />
+    <Compile Include="NotificationTask.cs" />
+  </ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform" Version="6.2.14" /></ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v$(VisualStudioVersion)\Microsoft.Windows.UI.Xaml.CSharp.targets" />
+  <!-- UWP app packaging passes its PackageAction to project references. The
+       notification component is already built by the reference build; expose
+       a no-op Pack target so that action does not fail or recurse. -->
+  <Target Name="Pack" />
+</Project>

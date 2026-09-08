@@ -21,7 +21,7 @@ namespace WpBlueBubbles.Services
 
     public sealed class GitHubUpdateService
     {
-        private const string LatestReleaseUrl = "https://api.github.com/repos/RetiredLake/WpBlueBubbles/releases/latest";
+        private const string LatestReleaseUrl = "https://api.github.com/repos/RetiredLake/LiveBubbles/releases/latest";
 
         public async Task<GitHubReleaseInfo> GetLatestReleaseAsync()
         {
@@ -97,7 +97,7 @@ namespace WpBlueBubbles.Services
         private static HttpClient CreateClient()
         {
             var client = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("WpBlueBubbles/0.3.1.2");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("LiveBubbles/0.3.2.0");
             return client;
         }
 

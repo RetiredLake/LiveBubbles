@@ -46,7 +46,7 @@
     <Compile Include="Services\BlueBubblesClient.cs" />
     <Compile Include="Services\GitHubUpdateService.cs" />
     <Compile Include="Services\ContactsService.cs" />
-    <Compile Include="Services\NotificationService.cs" />
+    <Compile Include="MainPage.Notifications.cs" />
     <Compile Include="Services\NotificationStateStore.cs" />
     <Compile Include="Services\QrSetupPayload.cs" />
     <Compile Include="Services\QrCameraScanner.cs" />
@@ -69,6 +69,12 @@
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LiveBubbles.Notifications\LiveBubbles.Notifications.csproj">
+      <Project>{E6EB76E7-120F-4CC8-9401-E1E9D1388E81}</Project>
+      <Name>LiveBubbles.Notifications</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform" Version="6.2.14" />

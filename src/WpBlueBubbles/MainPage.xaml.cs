@@ -113,6 +113,7 @@ namespace WpBlueBubbles
             _uiSettings.ColorValuesChanged += UiSettings_ColorValuesChanged;
             MessageBox.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(MessageBox_KeyDown), true);
             ComposeMessageBox.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(ComposeMessageBox_KeyDown), true);
+            InitializeNotifications();
         }
 
         private async void MainPage_Loaded(object sender, RoutedEventArgs e)
@@ -153,8 +154,7 @@ namespace WpBlueBubbles
             _settingsLoaded = true;
             UpdateDeveloperModePresentation();
             UpdateSyncDescription();
-            try { await NotificationService.DisableAsync(); }
-            catch { }
+            RefreshNotificationControls();
             if (!settings.IsComplete)
             {
                 SetSettingsMode(false);
@@ -166,6 +166,7 @@ namespace WpBlueBubbles
 
         private void MainPage_Unloaded(object sender, RoutedEventArgs e)
         {
+            UnloadNotifications();
             _pollTimer.Stop();
             _qrScanTimer.Stop();
             _statusTimer.Stop();
@@ -240,8 +241,12 @@ namespace WpBlueBubbles
                 try { _serverCapabilities = await _client.GetServerCapabilitiesAsync(); _serverCapabilitiesKnown = true; }
                 catch { _serverCapabilities = new ServerCapabilities(); _serverCapabilitiesKnown = false; }
                 UpdateServerDetails(address);
-                try { NavigationIdentityText.Text = await _client.GetRegisteredPhoneNumberAsync(); }
-                catch { NavigationIdentityText.Text = "BlueBubbles"; }
+                try
+                {
+                    var identity = await _client.GetRegisteredPhoneNumberAsync();
+                    NavigationIdentityText.Text = identity == "BlueBubbles" ? "LiveBubbles" : identity;
+                }
+                catch { NavigationIdentityText.Text = "LiveBubbles"; }
                 SettingsStore.Save(address, password);
                 SettingsStore.SaveSyncOptions(_messagesPerChat, _syncTimeframeDays);
                 ShowInitialLoadingDots();
@@ -254,6 +259,7 @@ namespace WpBlueBubbles
                 SetSettingsMode(true);
                 if (closeSettings) SettingsOverlay.Visibility = Visibility.Collapsed;
                 OpenPendingActivation();
+                StartNotificationsWithoutWaiting();
                 if (initialSyncError == null) ShowStatus(string.Empty, false);
                 else ShowStatus(FriendlyError(initialSyncError, "load chats") + " BlueBubbles will retry automatically.", true);
                 return true;
@@ -292,6 +298,7 @@ namespace WpBlueBubbles
                     if (!string.IsNullOrWhiteSpace(iconUri)) chat.AvatarSource = new BitmapImage(new Uri(iconUri));
                 }
             }
+            UpdateNotificationContext();
             NotificationStateStore.ReconcileReadState(chats);
             var signature = BuildChatStateSignature(chats);
             if (signature == _chatStateSignature) return false;
@@ -518,6 +525,8 @@ namespace WpBlueBubbles
             var sendReceipt = _serverCapabilities.CanUsePrivateApi && SendReadReceiptsToggle.IsOn && chat.IsUnread;
             chat.IsUnread = false;
             NotificationStateStore.MarkRead(chat.Guid);
+            UpdateNotificationContext();
+            await LiveBubbles.Notifications.NotificationBridge.MarkReadAsync(chat.Guid, chat.LastMessageTimestamp);
             if (!sendReceipt || _client == null || string.IsNullOrWhiteSpace(chat.Guid)) return;
             try
             {
@@ -798,8 +807,11 @@ namespace WpBlueBubbles
         public async void OpenChatFromNotification(string chatGuid)
         {
             if (string.IsNullOrWhiteSpace(chatGuid)) return;
-            var chat = _allChats.FirstOrDefault(item => item.Guid == chatGuid);
-            if (chat == null) return;
+            var activationGeneration = ++_messageLoadGeneration;
+            var chat = await FindNotificationChatAsync(chatGuid);
+            if (activationGeneration != _messageLoadGeneration || _client == null) return;
+            if (chat == null) { ShowStatus("This conversation is unavailable. Reconnect and try again.", true); return; }
+            SettingsOverlay.Visibility = Visibility.Collapsed;
             _messageLoadGeneration++;
             ResetMessageItems();
             _selectedChat = chat;
@@ -1299,10 +1311,7 @@ namespace WpBlueBubbles
 
         private void UpdateDeveloperModePresentation()
         {
-            if (NotificationsStatusText == null || DeveloperModeToggle == null) return;
-            NotificationsStatusText.Text = DeveloperModeToggle.IsOn
-                ? "Notifications and Live Tile are temporarily disabled."
-                : "Notifications and Live Tiles coming soon.";
+            RefreshNotificationControls();
         }
 
         private void ApplyTheme(AppThemeMode selectedMode, bool useAccentColor, bool largerUi)
@@ -1437,7 +1446,7 @@ namespace WpBlueBubbles
                 var current = new Version(currentId.Major, currentId.Minor, currentId.Build, currentId.Revision);
                 if (release.Version <= current)
                 {
-                    UpdateStatusText.Text = "BlueBubbles Beta is up to date.";
+                    UpdateStatusText.Text = "LiveBubbles is up to date.";
                     await new MessageDialog("You already have the latest release.", "No update available").ShowAsync();
                     return;
                 }
@@ -1549,7 +1558,7 @@ namespace WpBlueBubbles
 
         private async void SignOut_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new MessageDialog("Reset BlueBubbles on this device? Messages will not be deleted from the server.", "Sign out and reset?");
+            var dialog = new MessageDialog("Reset LiveBubbles on this device? Messages will not be deleted from the server.", "Sign out and reset?");
             var confirm = new UICommand("Sign out and reset");
             dialog.Commands.Add(confirm);
             dialog.Commands.Add(new UICommand("Cancel"));
@@ -1562,6 +1571,7 @@ namespace WpBlueBubbles
         private async Task SignOutLocallyAsync()
         {
             _settingsLoaded = false;
+            try { await LiveBubbles.Notifications.NotificationBridge.StopAsync(); } catch { }
             _messageLoadGeneration++;
             _pollTimer.Stop();
             _client?.Dispose();
@@ -1599,6 +1609,7 @@ namespace WpBlueBubbles
             SetSettingsMode(false);
             SettingsOverlay.Visibility = Visibility.Visible;
             ReturnToChats();
+            RefreshNotificationControls();
             _settingsLoaded = true;
         }
 
@@ -1644,12 +1655,15 @@ namespace WpBlueBubbles
         private async void ChatActions_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedChat == null) return;
+            var notificationChat = _selectedChat;
+            var mute = new UICommand(LiveBubbles.Notifications.NotificationBridge.IsMuted(notificationChat.Guid) ? "Unmute notifications" : "Mute notifications");
             var pin = new UICommand("Pin to Start");
             var rename = new UICommand("Rename group");
             var leave = new UICommand("Leave group");
             var delete = new UICommand("Delete chat");
             var menu = new PopupMenu();
             menu.Commands.Add(pin);
+            menu.Commands.Add(mute);
             if (_selectedChat.IsGroupChat)
             {
                 menu.Commands.Add(rename);
@@ -1658,7 +1672,11 @@ namespace WpBlueBubbles
             menu.Commands.Add(delete);
             var point = ChatActionsButton.TransformToVisual(null).TransformPoint(new Point());
             var selected = await menu.ShowForSelectionAsync(new Rect(point, ChatActionsButton.RenderSize));
-            if (selected == pin)
+            if (selected == mute)
+            {
+                LiveBubbles.Notifications.NotificationBridge.SetMuted(notificationChat.Guid, !LiveBubbles.Notifications.NotificationBridge.IsMuted(notificationChat.Guid));
+            }
+            else if (selected == pin)
             {
                 await PinSelectedChatAsync();
             }
@@ -1914,8 +1932,7 @@ namespace WpBlueBubbles
             var chatGuid = app?.TakePendingChatGuid();
             if (!string.IsNullOrWhiteSpace(chatGuid))
             {
-                var chat = _allChats.FirstOrDefault(item => item.Guid == chatGuid);
-                if (chat != null) OpenChatFromNotification(chatGuid);
+                OpenChatFromNotification(chatGuid);
             }
             var recipient = app?.TakePendingRecipient();
             if (!string.IsNullOrWhiteSpace(recipient)) OpenComposeForRecipient(recipient);
