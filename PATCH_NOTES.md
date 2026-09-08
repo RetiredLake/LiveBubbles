@@ -3,6 +3,13 @@
 All releases are beta software. Versions before v0.2.0.0 are retained as legacy
 builds and may contain bugs fixed by later releases.
 
+## v0.3.2.4 LiveBubbles
+
+- Rebuilds notification task registration without calling the failing
+  `BackgroundExecutionManager.RemoveAccess` path during sideloaded updates.
+- Separates background access, task registration, and reconnect failures in
+  Developer details so registration failures identify the failing operation.
+
 ## v0.3.2.3 LiveBubbles
 
 - Rotates stale Windows socket-broker IDs during notification reconnects to

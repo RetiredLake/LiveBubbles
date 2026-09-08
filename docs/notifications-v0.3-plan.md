@@ -137,6 +137,6 @@ x86, and x64. Compilation does not verify broker wake or notification delivery.
 - Source preservation: BlueBubblesClient.cs, MessageItem.cs, 29 pre-existing
   message/media methods, and the XAML resources/message templates match b51f46d.
 - Generated manifests retain WpBlueBubbles / CN=retiredlake, show LiveBubbles
-  0.3.2.3, and register the new background runtime component.
+  0.3.2.4, and register the new background runtime component.
 - No app was installed and no live BlueBubbles server was contacted for testing.
   Device delivery remains unverified and requires real Lumia validation.

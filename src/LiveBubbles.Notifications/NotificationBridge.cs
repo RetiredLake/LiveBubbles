@@ -127,25 +127,39 @@ namespace LiveBubbles.Notifications
                         string marker = version.Major + "." + version.Minor + "." + version.Build + "." + version.Revision;
                         if (Text("RegistrationVersion") != marker)
                         {
-                            await NotificationRuntime.CloseAsync(deadline.Token);
-                            Unregister();
-                            BackgroundExecutionManager.RemoveAccess();
+                            try { await NotificationRuntime.CloseAsync(deadline.Token); }
+                            catch (NotificationFailureException) { throw; }
+                            catch (Exception error) { throw new NotificationFailureException("registration-close", error); }
+                            try { Unregister(); }
+                            catch (Exception error) { throw new NotificationFailureException("registration-unregister", error); }
                         }
-                        var access = await BackgroundExecutionManager.RequestAccessAsync();
+                        BackgroundAccessStatus access;
+                        try { access = await BackgroundExecutionManager.RequestAccessAsync(); }
+                        catch (Exception error) { throw new NotificationFailureException("registration-request-access", error); }
                         if (!IsCurrent(generation)) return;
                         if (!access.ToString().StartsWith("Allowed", StringComparison.Ordinal))
                         {
                             SetStatus("Windows has blocked background notifications. Allow background activity for LiveBubbles in Windows settings.");
                             return;
                         }
-                        var socketTask = Register(TaskName, new SocketActivityTrigger());
-                        Register(RecoveryName, new TimeTrigger(15, false));
-                        Register(NetworkName, new SystemTrigger(SystemTriggerType.NetworkStateChange, false));
+                        IBackgroundTaskRegistration socketTask;
+                        try
+                        {
+                            socketTask = Register(TaskName, new SocketActivityTrigger());
+                            Register(RecoveryName, new TimeTrigger(15, false));
+                            Register(NetworkName, new SystemTrigger(SystemTriggerType.NetworkStateChange, false));
+                        }
+                        catch (Exception error) { throw new NotificationFailureException("registration-task", error); }
                         Values[Prefix + "RegistrationVersion"] = marker;
-                        await NotificationRuntime.EnsureConnectedAsync(socketTask.TaskId, generation, deadline.Token);
-                        await NotificationRuntime.ReconcileAsync(generation, deadline.Token);
+                        try { await NotificationRuntime.EnsureConnectedAsync(socketTask.TaskId, generation, deadline.Token); }
+                        catch (NotificationFailureException) { throw; }
+                        catch (Exception error) { throw new NotificationFailureException("registration-connect", error); }
+                        try { await NotificationRuntime.ReconcileAsync(generation, deadline.Token); }
+                        catch (NotificationFailureException) { throw; }
+                        catch (Exception error) { throw new NotificationFailureException("registration-reconcile", error); }
                     }
                 }
+                catch (NotificationFailureException ex) { RecordError(ex.Stage, ex.InnerException ?? ex); if (Enabled) SetStatus("Notification connection unavailable. Retrying automatically; open the app to retry now."); }
                 catch (Exception ex) { RecordError("registration", ex); if (Enabled) SetStatus("Notification connection unavailable. Retrying automatically; open the app to retry now."); }
             }
         }
