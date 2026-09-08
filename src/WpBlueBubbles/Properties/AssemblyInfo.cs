@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("LiveBubbles")]
-[assembly: AssemblyDescription("BlueBubbles client for Windows 10 Mobile and PC")]
+[assembly: AssemblyDescription("LiveBubbles client for Windows 10 Mobile and PC")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("LiveBubbles")]
 [assembly: AssemblyCopyright("Copyright 2026")]

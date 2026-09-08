@@ -3,6 +3,17 @@
 All releases are beta software. Versions before v0.2.0.0 are retained as legacy
 builds and may contain bugs fixed by later releases.
 
+## v0.3.2.2 LiveBubbles
+
+- Returns broker-reclaimed sockets directly from background tasks instead of
+  repeating foreground I/O cancellation, preventing `E_ILLEGAL_METHOD_CALL`
+  interruptions during notification delivery.
+- Detaches managed stream wrappers before background ownership is returned.
+- Reports the exact socket-broker operation when a device rejects ownership
+  setup or transfer.
+- Refactors remaining product-facing labels, filenames, setup text, and errors
+  to LiveBubbles or neutral server wording.
+
 ## v0.3.2.1 LiveBubbles
 
 - Fixes SocketActivityTrigger delivery by using the active background task

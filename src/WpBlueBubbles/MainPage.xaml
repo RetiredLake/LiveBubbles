@@ -147,7 +147,7 @@
       <ScrollViewer Grid.Row="1">
         <StackPanel MaxWidth="560" Padding="28,36" HorizontalAlignment="Center">
           <StackPanel x:Name="SetupOnlyPanel">
-          <TextBlock Text="Connect to BlueBubbles" FontSize="28" TextWrapping="Wrap" Margin="0,14,0,4"/>
+          <TextBlock Text="Connect to your server" FontSize="28" TextWrapping="Wrap" Margin="0,14,0,4"/>
           <TextBlock Text="Use the server's setup QR code or enter its address and password." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
           <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
             <Button Content="Manual setup" Click="ManualSetup_Click"/>
@@ -162,7 +162,7 @@
             </StackPanel>
           </StackPanel>
           <StackPanel x:Name="QrSetupPanel" Visibility="Collapsed">
-            <TextBlock Text="Scan the setup QR code shown by your BlueBubbles server." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,14,0,0"/>
+            <TextBlock Text="Scan the setup QR code shown by your server." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,14,0,0"/>
             <Button Content="Scan setup QR code with camera" Click="ScanQr_Click" HorizontalAlignment="Left" Margin="0,14,0,0"/>
           </StackPanel>
           </StackPanel>
@@ -178,7 +178,7 @@
             <ToggleSwitch x:Name="NotificationPreviewsToggle" Header="Show names and message previews" OffContent="Private" OnContent="Show previews" Toggled="NotificationPreviewsToggle_Toggled" Margin="0,12,0,0"/>
             <StackPanel x:Name="NotificationDeveloperPanel" Visibility="Collapsed">
               <TextBlock x:Name="NotificationsStatusText" Text="Notifications connect automatically after sign-in." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,12,0,0"/>
-              <TextBlock Text="Uses your existing BlueBubbles connection. Windows may delay background delivery while saving battery or offline." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+              <TextBlock Text="Uses your existing server connection. Windows may delay background delivery while saving battery or offline." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
               <TextBlock x:Name="NotificationDiagnosticsText" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
               <Button Content="Test notification" Click="TestNotification_Click" HorizontalAlignment="Left" Margin="0,12,0,0"/>
               <HyperlinkButton Content="Reconnect notifications" Click="RetryNotifications_Click" HorizontalAlignment="Left" Padding="0" Margin="0,10,0,0"/>
@@ -221,7 +221,7 @@
     <Grid x:Name="QrScannerOverlay" Background="#F2071117" Visibility="Collapsed">
       <Grid Padding="24"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <CaptureElement x:Name="QrCameraPreview" Stretch="Uniform"/>
-        <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,12,0,0"><TextBlock x:Name="QrScannerStatus" Text="Point the camera at the BlueBubbles setup QR code" TextWrapping="Wrap" FontSize="17" TextAlignment="Center"/><ProgressRing x:Name="QrConnectProgress" Width="32" Height="32" IsActive="False" Margin="0,12,0,0"/><Button Content="Cancel camera scan" Click="CancelQrScan_Click" Margin="0,10,0,0"/></StackPanel>
+        <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,12,0,0"><TextBlock x:Name="QrScannerStatus" Text="Point the camera at the server setup QR code" TextWrapping="Wrap" FontSize="17" TextAlignment="Center"/><ProgressRing x:Name="QrConnectProgress" Width="32" Height="32" IsActive="False" Margin="0,12,0,0"/><Button Content="Cancel camera scan" Click="CancelQrScan_Click" Margin="0,10,0,0"/></StackPanel>
       </Grid>
     </Grid>
 

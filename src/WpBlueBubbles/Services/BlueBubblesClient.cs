@@ -199,18 +199,18 @@ namespace WpBlueBubbles.Services
                         }
                         else if (message.IndexOf("stopped-typing-error", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
-                            completed.TrySetException(new InvalidOperationException("BlueBubbles could not stop the typing indicator."));
+                            completed.TrySetException(new InvalidOperationException("LiveBubbles could not stop the typing indicator."));
                         }
                     }
                     catch (Exception ex) { completed.TrySetException(ex); }
                 };
-                socket.Closed += (sender, args) => completed.TrySetException(new InvalidOperationException("The BlueBubbles typing connection closed unexpectedly."));
+                socket.Closed += (sender, args) => completed.TrySetException(new InvalidOperationException("The LiveBubbles typing connection closed unexpectedly."));
                 var socketRoot = _serverRoot.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
                     ? "wss://" + _serverRoot.Substring(8)
                     : _serverRoot.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ? "ws://" + _serverRoot.Substring(7) : _serverRoot;
                 await socket.ConnectAsync(new Uri(socketRoot + "/socket.io/?EIO=4&transport=websocket&guid=" + Uri.EscapeDataString(_password)));
                 var timeout = Task.Delay(TimeSpan.FromSeconds(8));
-                if (await Task.WhenAny(completed.Task, timeout) != completed.Task) throw new TimeoutException("BlueBubbles did not confirm that typing stopped.");
+                if (await Task.WhenAny(completed.Task, timeout) != completed.Task) throw new TimeoutException("LiveBubbles did not confirm that typing stopped.");
                 await completed.Task;
                 socket.Close(1000, "Typing stopped");
             }

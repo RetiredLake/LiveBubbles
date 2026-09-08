@@ -250,7 +250,7 @@ namespace WpBlueBubbles
                 SettingsStore.Save(address, password);
                 SettingsStore.SaveSyncOptions(_messagesPerChat, _syncTimeframeDays);
                 ShowInitialLoadingDots();
-                SetSyncing(true, "Requesting chat list from BlueBubbles...");
+                SetSyncing(true, "Requesting chat list from the server...");
                 await LoadContactsAsync();
                 Exception initialSyncError = null;
                 try { await RefreshChatsAsync(); }
@@ -376,7 +376,7 @@ namespace WpBlueBubbles
         {
             if (_isRefreshing) return;
             _isRefreshing = true;
-            SetSyncing(true, "Refreshing chat list from BlueBubbles...");
+            SetSyncing(true, "Refreshing chat list from the server...");
             try
             {
                 var chatsChanged = await RefreshChatsAsync();
@@ -581,7 +581,7 @@ namespace WpBlueBubbles
                 _qrScanner = new QrCameraScanner();
                 QrCameraPreview.Visibility = Visibility.Visible;
                 QrConnectProgress.IsActive = false;
-                QrScannerStatus.Text = "Point the camera at the BlueBubbles setup QR code";
+                QrScannerStatus.Text = "Point the camera at the server setup QR code";
                 QrScannerOverlay.Visibility = Visibility.Visible;
                 await _qrScanner.StartAsync(QrCameraPreview);
                 _qrScanTimer.Start();
@@ -604,7 +604,7 @@ namespace WpBlueBubbles
                 _qrScanTimer.Stop();
                 await _qrScanner.StopAsync(QrCameraPreview);
                 QrCameraPreview.Visibility = Visibility.Collapsed;
-                QrScannerStatus.Text = "QR code found. Connecting to BlueBubbles...";
+                QrScannerStatus.Text = "QR code found. Connecting to the server...";
                 QrConnectProgress.IsActive = true;
                 await ConnectQrPayloadAsync(payloadText);
                 QrConnectProgress.IsActive = false;
@@ -695,7 +695,7 @@ namespace WpBlueBubbles
                     var bytes = await _client.DownloadAttachmentAsync(message.AttachmentGuid);
                     var file = await KnownFolders.PicturesLibrary.CreateFileAsync(GetMediaFileName(message), CreationCollisionOption.GenerateUniqueName);
                     await FileIO.WriteBytesAsync(file, bytes);
-                    await new MessageDialog("Saved to Pictures.", "BlueBubbles").ShowAsync();
+                    await new MessageDialog("Saved to Pictures.", "LiveBubbles").ShowAsync();
                 }, "save the media"));
             }
             if (actions.Count > 0) ShowDarkActionFlyout(element, actions);
@@ -770,7 +770,7 @@ namespace WpBlueBubbles
                 else if (string.Equals(message.AttachmentMimeType, "image/gif", StringComparison.OrdinalIgnoreCase)) extension = ".gif";
                 else if (string.Equals(message.AttachmentMimeType, "image/heic", StringComparison.OrdinalIgnoreCase)) extension = ".heic";
                 else if (message.AttachmentMimeType.IndexOf("quicktime", StringComparison.OrdinalIgnoreCase) >= 0) extension = ".mov";
-                fileName = "BlueBubbles-" + (string.IsNullOrWhiteSpace(message.Guid) ? Guid.NewGuid().ToString("N") : message.Guid) + extension;
+                fileName = "LiveBubbles-" + (string.IsNullOrWhiteSpace(message.Guid) ? Guid.NewGuid().ToString("N") : message.Guid) + extension;
             }
             foreach (var invalid in Path.GetInvalidFileNameChars()) fileName = fileName.Replace(invalid, '_');
             return fileName;
@@ -923,7 +923,7 @@ namespace WpBlueBubbles
             if (_composeSelectedChat == null) _composeSelectedChat = FindExistingChat(recipients);
             if (_composeSelectedChat == null && recipients.Count == 1) _composeSelectedChat = await _client.FindDirectChatAsync(recipients[0], _composeService);
             if (_composeSelectedChat == null && recipients.Count == 0) { ShowStatus("Enter at least one phone number or email address.", true); return; }
-            if (_composeSelectedChat == null && recipients.Count > 1 && !_serverCapabilities.CanUsePrivateApi) { ShowStatus("Creating group chats requires the BlueBubbles Private API helper.", true); return; }
+            if (_composeSelectedChat == null && recipients.Count > 1 && !_serverCapabilities.CanUsePrivateApi) { ShowStatus("Creating group chats requires the server's Private API helper.", true); return; }
             if (_composeSelectedChat == null && string.IsNullOrWhiteSpace(message))
             {
                 var error = "A text message is required to start a brand-new conversation before sending attachments.";
@@ -956,7 +956,7 @@ namespace WpBlueBubbles
                     await _client.SendTextAsync(chat.Guid, message);
                     sendAccepted = true;
                 }
-                if (chat == null || string.IsNullOrWhiteSpace(chat.Guid)) throw new InvalidOperationException("BlueBubbles accepted the message but did not return the conversation.");
+                if (chat == null || string.IsNullOrWhiteSpace(chat.Guid)) throw new InvalidOperationException("The server accepted the message but did not return the conversation.");
                 foreach (var file in _sharedFiles.ToList())
                 {
                     await _client.SendAttachmentAsync(chat.Guid, file);
@@ -982,7 +982,7 @@ namespace WpBlueBubbles
             catch (Exception ex)
             {
                 FinishFailedCompose(fromShareTarget, sendAccepted
-                    ? "The message was accepted, but BlueBubbles could not open its conversation."
+                    ? "The message was accepted, but LiveBubbles could not open its conversation."
                     : FriendlyError(ex, "send the message"));
             }
             finally
@@ -1473,7 +1473,7 @@ namespace WpBlueBubbles
         private async Task DeleteMessageAsync(MessageItem message)
         {
             if (_client == null || _selectedChat == null || !_serverCapabilities.CanUsePrivateApi) return;
-            var dialog = new MessageDialog("Delete this message permanently from the BlueBubbles server? This cannot be undone. It will not unsend the message from other participants.", "Delete message?");
+            var dialog = new MessageDialog("Delete this message permanently from the connected server? This cannot be undone. It will not unsend the message from other participants.", "Delete message?");
             var confirm = new UICommand("Delete permanently");
             dialog.Commands.Add(confirm);
             dialog.Commands.Add(new UICommand("Cancel"));
@@ -1697,7 +1697,7 @@ namespace WpBlueBubbles
         private async Task RenameSelectedGroupAsync()
         {
             if (_client == null || _selectedChat == null || !_selectedChat.IsGroupChat) return;
-            if (!_serverCapabilities.CanUsePrivateApi) { ShowStatus("Renaming groups requires the BlueBubbles Private API helper.", true); return; }
+            if (!_serverCapabilities.CanUsePrivateApi) { ShowStatus("Renaming groups requires the server's Private API helper.", true); return; }
             var nameBox = new TextBox { Text = _selectedChat.Title, PlaceholderText = "Group name" };
             var dialog = new ContentDialog { Title = "Rename group", Content = nameBox, PrimaryButtonText = "Rename", CloseButtonText = "Cancel" };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary || string.IsNullOrWhiteSpace(nameBox.Text)) return;
@@ -1717,7 +1717,7 @@ namespace WpBlueBubbles
         private async Task LeaveSelectedGroupAsync()
         {
             if (_client == null || _selectedChat == null || !_selectedChat.IsGroupChat) return;
-            if (!_serverCapabilities.CanUsePrivateApi) { ShowStatus("Leaving groups requires the BlueBubbles Private API helper.", true); return; }
+            if (!_serverCapabilities.CanUsePrivateApi) { ShowStatus("Leaving groups requires the server's Private API helper.", true); return; }
             var dialog = new MessageDialog("Leave \"" + _selectedChat.Title + "\"? You may need another participant to add you again.", "Leave group?");
             var confirm = new UICommand("Leave group");
             dialog.Commands.Add(confirm);
@@ -1772,9 +1772,9 @@ namespace WpBlueBubbles
         private async Task DeleteSelectedChatAsync()
         {
             if (_client == null || _selectedChat == null) return;
-            if (!_serverCapabilities.CanUsePrivateApi) { ShowStatus("Deleting chats requires the BlueBubbles Private API helper.", true); return; }
+            if (!_serverCapabilities.CanUsePrivateApi) { ShowStatus("Deleting chats requires the server's Private API helper.", true); return; }
             var title = _selectedChat.Title;
-            var dialog = new MessageDialog("Delete \"" + title + "\" permanently from the BlueBubbles server? This cannot be undone.", "Delete conversation?");
+            var dialog = new MessageDialog("Delete \"" + title + "\" permanently from the connected server? This cannot be undone.", "Delete conversation?");
             var confirm = new UICommand("Delete permanently");
             dialog.Commands.Add(confirm);
             dialog.Commands.Add(new UICommand("Cancel"));
@@ -1969,7 +1969,7 @@ namespace WpBlueBubbles
             }
             catch (Exception ex)
             {
-                FailSharedContent("BlueBubbles could not read the shared item: " + ex.Message);
+                FailSharedContent("LiveBubbles could not read the shared item: " + ex.Message);
             }
         }
 
@@ -2117,9 +2117,9 @@ namespace WpBlueBubbles
             string friendly;
             if (!HasNetworkConnection()) friendly = "This device is offline. Connect to Wi-Fi or cellular data, then try again.";
             else if (root is HttpRequestException || root is TaskCanceledException || detail.IndexOf("net_http", StringComparison.OrdinalIgnoreCase) >= 0 || detail.IndexOf("connection", StringComparison.OrdinalIgnoreCase) >= 0)
-                friendly = "The BlueBubbles server is offline or unreachable. Check that the Mac and server are running on the same network.";
+                friendly = "The connected server is offline or unreachable. Check that the Mac and server are running on the same network.";
             else if (detail.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0 || detail.IndexOf("404", StringComparison.OrdinalIgnoreCase) >= 0)
-                friendly = "The conversation was not found on the BlueBubbles server. Refresh Chats and try again.";
+                friendly = "The conversation was not found on the connected server. Refresh Chats and try again.";
             else friendly = "LiveBubbles could not " + action + ".";
             if (!DeveloperModeToggle.IsOn || detail.Length == 0) return friendly;
             if (detail.Length > 900) detail = detail.Substring(0, 900).TrimEnd() + "...";

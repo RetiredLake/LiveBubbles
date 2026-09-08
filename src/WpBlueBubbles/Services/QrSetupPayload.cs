@@ -16,7 +16,7 @@ namespace WpBlueBubbles.Services
             JsonArray values;
             if (string.IsNullOrWhiteSpace(value) || !JsonArray.TryParse(value.Trim(), out values) || values.Count < 2)
             {
-                error = "That is not a BlueBubbles QR setup code.";
+                error = "That is not a valid server QR setup code.";
                 return false;
             }
 

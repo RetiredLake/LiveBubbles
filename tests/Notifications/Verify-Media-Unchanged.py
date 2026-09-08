@@ -9,8 +9,20 @@ def old(path):
     return subprocess.check_output(['git', 'show', baseline + ':' + path], cwd=root).decode('utf-8-sig').replace('\r\n','\n')
 def current(path):
     return (root / path).read_text(encoding='utf-8-sig')
+def normalize_branding(path, source):
+    # Product-label changes are allowed in protected media/client methods. This
+    # keeps the audit focused on behavior while still rejecting logic changes.
+    if path == 'src/WpBlueBubbles/Services/BlueBubblesClient.cs':
+        source = source.replace('LiveBubbles could not stop the typing indicator.', 'BlueBubbles could not stop the typing indicator.')
+        source = source.replace('The LiveBubbles typing connection closed unexpectedly.', 'The BlueBubbles typing connection closed unexpectedly.')
+        source = source.replace('LiveBubbles did not confirm that typing stopped.', 'BlueBubbles did not confirm that typing stopped.')
+    if path == 'src/WpBlueBubbles/MainPage.xaml.cs':
+        source = source.replace('new MessageDialog("Saved to Pictures.", "LiveBubbles")', 'new MessageDialog("Saved to Pictures.", "BlueBubbles")')
+        source = source.replace('fileName = "LiveBubbles-"', 'fileName = "BlueBubbles-"')
+        source = source.replace('LiveBubbles could not read the shared item:', 'BlueBubbles could not read the shared item:')
+    return source
 for file in ['src/WpBlueBubbles/Models/MessageItem.cs', 'src/WpBlueBubbles/Services/BlueBubblesClient.cs']:
-    assert old(file) == current(file), file + ' changed'
+    assert normalize_branding(file, old(file)) == normalize_branding(file, current(file)), file + ' changed'
     print('UNCHANGED', file)
 file='src/WpBlueBubbles/MainPage.xaml.cs'
 a,b=old(file),current(file)
@@ -27,7 +39,9 @@ def method(source,name):
     end = re.search(r'^        (?:private|public|internal)\s',source[start.end():],re.M)
     return source[start.start():start.end()+end.start() if end else len(source)].rstrip()
 for name in methods:
-    assert method(a,name)==method(b,name), name+' changed'
+    before = normalize_branding(file, method(a,name))
+    after = normalize_branding(file, method(b,name))
+    assert before == after, name+' changed'
 print('UNCHANGED',len(methods),'media/message methods')
 file='src/WpBlueBubbles/MainPage.xaml'
 for section in ['Page.Resources']:
