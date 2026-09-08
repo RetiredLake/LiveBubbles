@@ -48,7 +48,7 @@ See [notification architecture and validation](docs/notifications-v0.3-plan.md).
    `Dependencies\arm`, then install the `.appxbundle`.
 4. Launch the installed client and enter the server URL/password or scan its setup QR.
 
-Release ZIPs contain one complete `WpBlueBubbles_<version>_Test` folder. Keep its
+Release ZIPs contain one complete `LiveBubbles_<version>_Test` folder. Keep its
 `Dependencies` directory beside the bundle. See [PATCH_NOTES.md](PATCH_NOTES.md)
 before choosing an older legacy build.
 
