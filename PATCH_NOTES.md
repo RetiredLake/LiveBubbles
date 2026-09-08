@@ -3,6 +3,16 @@
 All releases are beta software. Versions before v0.2.0.0 are retained as legacy
 builds and may contain bugs fixed by later releases.
 
+## v0.3.2.3 LiveBubbles
+
+- Rotates stale Windows socket-broker IDs during notification reconnects to
+  avoid invalid ownership state after an interrupted handoff.
+- Retries socket ownership setup without low-power wake when the device rejects
+  the wake mode.
+- Makes the Developer-mode test perform an authenticated connection and broker
+  handoff before showing a local toast.
+- Adds operation-specific diagnostics for background notification failures.
+
 ## v0.3.2.2 LiveBubbles
 
 - Returns broker-reclaimed sockets directly from background tasks instead of

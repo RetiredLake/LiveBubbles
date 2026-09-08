@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:m2="http://schemas.microsoft.com/appx/2013/manifest" IgnorableNamespaces="uap mp m2">
-    <Identity Name="WpBlueBubbles" Publisher="CN=retiredlake" Version="0.3.2.2" />
+    <Identity Name="WpBlueBubbles" Publisher="CN=retiredlake" Version="0.3.2.3" />
   <mp:PhoneIdentity PhoneProductId="79f60ed4-a1a8-4791-bafd-03dd8f46c983" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>LiveBubbles</DisplayName><PublisherDisplayName>retiredlake</PublisherDisplayName><Logo>Assets\StoreLogo.png</Logo>
