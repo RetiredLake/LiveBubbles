@@ -30,7 +30,9 @@ socket bridge, so it is an architectural reference, not proof of Lumia delivery.
   create App/XAML or access the app's message/media renderer.
 - `NotificationRuntime`: notification-only event handling and metadata recovery.
   New-message events alert; outgoing messages, reactions, receipts, and group
-  maintenance do not. It never downloads attachment content.
+  maintenance do not. It never downloads attachment content. Reconnects rotate
+  the broker socket ID when Windows still has an older entry, avoiding stale
+  ownership collisions.
 - `NotificationStorage` and `NotificationPolicy`: cross-process file lock,
   durable GUID deduplication, read and replay watermarks, mute/visible-chat
   suppression, and bounded retention. Payload text and server passwords are not
@@ -65,7 +67,9 @@ The UI keeps its existing polling behavior.
 - Message notifications: automatically enabled on first successful sign-in;
   turning them off persists across launches.
 - Show names and message previews: enabled by default; turn the switch off for private notifications.
-- Test notification and reconnect controls: available only with Developer mode enabled.
+- Test connection and notification plus reconnect controls: available only with
+  Developer mode enabled. The test performs a fresh authenticated socket
+  handshake and broker handoff before showing the local toast.
 - Connection status and diagnostics: available only with Developer mode enabled.
 - Mute/unmute notifications: available in each conversation's chat-actions menu.
 

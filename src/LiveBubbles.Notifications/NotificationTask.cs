@@ -15,11 +15,12 @@ namespace LiveBubbles.Notifications
             {
                 BackgroundTaskCanceledEventHandler canceled = (sender, reason) => deadline.Cancel();
                 taskInstance.Canceled += canceled;
+                SocketActivityTriggerDetails details = null;
                 try
                 {
                     string generation = NotificationBridge.Generation;
                     if (!NotificationBridge.IsCurrent(generation)) return;
-                    var details = taskInstance.TriggerDetails as SocketActivityTriggerDetails;
+                    details = taskInstance.TriggerDetails as SocketActivityTriggerDetails;
                     if (details != null)
                     {
                         // SocketActivityTriggerDetails already belongs to this
@@ -37,8 +38,18 @@ namespace LiveBubbles.Notifications
                 }
                 catch (OperationCanceledException) { }
                 catch (NotificationFailureException ex) { NotificationBridge.RecordError(ex.Stage, ex.InnerException ?? ex); if (NotificationBridge.Enabled) NotificationBridge.SetStatus("Notification connection interrupted. Retrying automatically."); }
-                catch (Exception ex) { NotificationBridge.RecordError("background", ex); if (NotificationBridge.Enabled) NotificationBridge.SetStatus("Notification connection interrupted. Retrying automatically."); }
-                finally { taskInstance.Canceled -= canceled; deferral.Complete(); }
+                catch (Exception ex)
+                {
+                    string stage = "background-recovery";
+                    try { if (details != null) stage = "socket-" + details.Reason.ToString(); } catch { }
+                    NotificationBridge.RecordError(stage, ex);
+                    if (NotificationBridge.Enabled) NotificationBridge.SetStatus("Notification connection interrupted. Retrying automatically.");
+                }
+                finally
+                {
+                    try { taskInstance.Canceled -= canceled; } catch (Exception ex) { NotificationBridge.RecordError("background-cancel-handler", ex); }
+                    try { deferral.Complete(); } catch (Exception ex) { NotificationBridge.RecordError("deferral-complete", ex); }
+                }
             }
         }
     }

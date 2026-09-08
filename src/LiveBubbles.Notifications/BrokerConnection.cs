@@ -36,17 +36,28 @@ namespace LiveBubbles.Notifications
             var socket = new StreamSocket();
             try
             {
-                socket.Control.KeepAlive = true;
+                try { socket.Control.KeepAlive = true; }
+                catch (Exception error) { throw new NotificationFailureException("socket-control", error); }
                 try
                 {
-                    socket.EnableTransferOwnership(taskId, (new Windows.ApplicationModel.Background.SocketActivityTrigger()).IsWakeFromLowPowerSupported ? SocketActivityConnectedStandbyAction.Wake : SocketActivityConnectedStandbyAction.DoNotWake);
+                    var trigger = new Windows.ApplicationModel.Background.SocketActivityTrigger();
+                    var action = trigger.IsWakeFromLowPowerSupported ? SocketActivityConnectedStandbyAction.Wake : SocketActivityConnectedStandbyAction.DoNotWake;
+                    socket.EnableTransferOwnership(taskId, action);
                 }
-                catch (Exception error)
+                catch (Exception)
                 {
-                    throw new NotificationFailureException("enable-transfer-ownership", error);
+                    // Some Lumia and desktop configurations report that low-power
+                    // wake is available and still reject Wake at runtime. Retry
+                    // with the portable action before surfacing the failure.
+                    try { socket.EnableTransferOwnership(taskId, SocketActivityConnectedStandbyAction.DoNotWake); }
+                    catch (Exception retryError) { throw new NotificationFailureException("enable-transfer-ownership", retryError); }
                 }
-                await socket.ConnectAsync(new HostName(uri.DnsSafeHost), uri.Port.ToString(),
-                    uri.Scheme == "https" ? SocketProtectionLevel.Tls12 : SocketProtectionLevel.PlainSocket).AsTask(token);
+                try
+                {
+                    await socket.ConnectAsync(new HostName(uri.DnsSafeHost), uri.Port.ToString(),
+                        uri.Scheme == "https" ? SocketProtectionLevel.Tls12 : SocketProtectionLevel.PlainSocket).AsTask(token);
+                }
+                catch (Exception error) { throw new NotificationFailureException("connect", error); }
                 var connection = new BrokerConnection(socket);
                 var keyBytes = new byte[16]; using (var random = RandomNumberGenerator.Create()) random.GetBytes(keyBytes);
                 string key = Convert.ToBase64String(keyBytes);
@@ -54,25 +65,40 @@ namespace LiveBubbles.Notifications
                 if (!uri.IsDefaultPort) host += ":" + uri.Port;
                 string request = "GET " + uri.PathAndQuery + " HTTP/1.1\r\nHost: " + host + "\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: " + key + "\r\nSec-WebSocket-Version: 13\r\n\r\n";
                 byte[] bytes = Encoding.UTF8.GetBytes(request);
-                await connection.stream.WriteAsync(bytes, 0, bytes.Length, token);
+                try { await connection.stream.WriteAsync(bytes, 0, bytes.Length, token); }
+                catch (Exception error) { throw new NotificationFailureException("handshake-write", error); }
                 var header = new StringBuilder(); var one = new byte[1];
                 while (header.Length < 16384)
                 {
-                    if (await connection.stream.ReadAsync(one, 0, 1, token) == 0) throw new EndOfStreamException();
+                    int count;
+                    try { count = await connection.stream.ReadAsync(one, 0, 1, token); }
+                    catch (Exception error) { throw new NotificationFailureException("handshake-read", error); }
+                    if (count == 0) throw new EndOfStreamException();
                     header.Append((char)one[0]);
                     if (header.Length >= 4 && header.ToString(header.Length - 4, 4) == "\r\n\r\n") break;
                 }
                 WebSocketWire.ValidateUpgrade(header.ToString(), key);
                 string hello;
-                do { hello = await connection.Wire.ReadTextAsync(token); } while (hello == null);
+                do
+                {
+                    try { hello = await connection.Wire.ReadTextAsync(token); }
+                    catch (Exception error) { throw new NotificationFailureException("engine-handshake-read", error); }
+                } while (hello == null);
                 if (!hello.StartsWith("0", StringComparison.Ordinal)) throw new IOException("Missing Engine.IO handshake.");
-                await connection.Wire.SendTextAsync("40", token);
+                try { await connection.Wire.SendTextAsync("40", token); }
+                catch (Exception error) { throw new NotificationFailureException("engine-handshake-write", error); }
                 while (true)
                 {
-                    string packet = await connection.Wire.ReadTextAsync(token);
+                    string packet;
+                    try { packet = await connection.Wire.ReadTextAsync(token); }
+                    catch (Exception error) { throw new NotificationFailureException("socket-handshake-read", error); }
                     if (packet == null) continue;
                     if (packet.StartsWith("40", StringComparison.Ordinal)) return connection;
-                    if (packet.StartsWith("2", StringComparison.Ordinal)) await connection.Wire.SendTextAsync("3" + packet.Substring(1), token);
+                    if (packet.StartsWith("2", StringComparison.Ordinal))
+                    {
+                        try { await connection.Wire.SendTextAsync("3" + packet.Substring(1), token); }
+                        catch (Exception error) { throw new NotificationFailureException("socket-handshake-write", error); }
+                    }
                     else throw new IOException("Notification authentication was not accepted.");
                 }
             }
@@ -94,6 +120,10 @@ namespace LiveBubbles.Notifications
                 {
                     throw new NotificationFailureException("cancel-io", error);
                 }
+                // Drop the app-owned stream wrappers after cancellation and
+                // before handing the socket to the broker. This mirrors the
+                // foreground quiescence sequence used by the Windows samples.
+                DetachStreams();
             }
             // Return ownership without installing a one-minute broker timer. The
             // server's Engine.IO heartbeat and SocketActivityTrigger wakeups keep

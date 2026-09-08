@@ -50,10 +50,51 @@ namespace LiveBubbles.Notifications
             if (muted) { try { NotificationPresenter.ClearChat(chatGuid); } catch { } }
         }
         public static void ShowTestNotification() { NotificationPresenter.Show("LiveBubbles", "Notifications are working on this device.", null); }
+        public static IAsyncAction TestAsync() { return TestCoreAsync().AsAsyncAction(); }
         public static IAsyncAction StartAsync() { return StartCoreAsync(false).AsAsyncAction(); }
         public static IAsyncAction EnableAsync() { return StartCoreAsync(true).AsAsyncAction(); }
         public static IAsyncAction StopAsync() { return StopCoreAsync().AsAsyncAction(); }
         public static IAsyncAction MarkReadAsync(string chatGuid, long timestamp) { return MarkReadCoreAsync(chatGuid, timestamp).AsAsyncAction(); }
+
+        private static async Task TestCoreAsync()
+        {
+            if (!Enabled) throw new InvalidOperationException("Enable notifications before testing the connection.");
+            using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20)))
+            {
+                try
+                {
+                    string generation;
+                    var socketTask = BackgroundTaskRegistration.AllTasks.Values.FirstOrDefault(t => t.Name == TaskName);
+                    if (socketTask == null)
+                    {
+                        await StartCoreAsync(false);
+                        socketTask = BackgroundTaskRegistration.AllTasks.Values.FirstOrDefault(t => t.Name == TaskName);
+                    }
+                    if (socketTask == null) throw new InvalidOperationException("The LiveBubbles notification background task is not registered.");
+                    generation = Generation;
+                    if (!IsCurrent(generation)) throw new InvalidOperationException("Notifications are no longer enabled.");
+                    // Force a fresh authenticated handshake and broker handoff so
+                    // this cannot pass merely because a local toast is allowed.
+                    await NotificationRuntime.EnsureConnectedAsync(socketTask.TaskId, generation, deadline.Token, true);
+                    if (!IsCurrent(generation)) throw new InvalidOperationException("Notifications are no longer enabled.");
+                    try { ShowTestNotification(); }
+                    catch (Exception error) { throw new NotificationFailureException("toast-test", error); }
+                    SetStatus("Connection and local notification test passed.");
+                }
+                catch (NotificationFailureException ex)
+                {
+                    RecordError(ex.Stage, ex.InnerException ?? ex);
+                    SetStatus("Notification connection test failed. See developer details.");
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    RecordError("test", ex);
+                    SetStatus("Notification connection test failed. See developer details.");
+                    throw;
+                }
+            }
+        }
 
         private static async Task StartCoreAsync(bool explicitlyEnable)
         {

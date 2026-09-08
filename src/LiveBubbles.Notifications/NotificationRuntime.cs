@@ -14,7 +14,28 @@ namespace LiveBubbles.Notifications
     internal static class NotificationRuntime
     {
         internal const string SocketPrefix = "LiveBubbles.Notifications.";
-        internal static string SocketId { get { return SocketPrefix + NotificationBridge.Generation; } }
+        private const string SocketIdKey = "LiveBubbles.Notifications.SocketId";
+        private static Windows.Foundation.Collections.IPropertySet Values { get { return ApplicationData.Current.LocalSettings.Values; } }
+        internal static string SocketId
+        {
+            get
+            {
+                string generation = NotificationBridge.Generation;
+                object raw;
+                string current = Values.TryGetValue(SocketIdKey, out raw) ? raw as string : null;
+                string prefix = SocketPrefix + generation + ".";
+                if (!string.IsNullOrEmpty(generation) && !string.IsNullOrEmpty(current) && current.StartsWith(prefix, StringComparison.Ordinal)) return current;
+                // Keep accepting the pre-rotation ID so an upgrade can process
+                // a socket that was already handed to Windows before this key
+                // existed. The next reconnect rotates it before transferring.
+                return SocketPrefix + generation;
+            }
+        }
+
+        private static void RotateSocketId(string generation)
+        {
+            Values[SocketIdKey] = SocketPrefix + generation + "." + Guid.NewGuid().ToString("N");
+        }
 
         internal static Uri ServerUri(bool websocket)
         {
@@ -35,22 +56,38 @@ namespace LiveBubbles.Notifications
             using (await NotificationStorage.LockAsync("notification-connection", token))
             {
                 if (!NotificationBridge.IsCurrent(generation)) return;
-                if (!forceReconnect && SocketActivityInformation.AllSockets.ContainsKey(SocketId)) return;
-                if (forceReconnect)
+                string socketId = SocketId;
+                SocketActivityInformation stale;
+                bool hasEntry = TryGetBrokerSocket(socketId, out stale);
+                if (!forceReconnect && hasEntry && stale != null && stale.StreamSocket != null) return;
+                if (hasEntry)
                 {
-                    SocketActivityInformation stale;
-                    if (SocketActivityInformation.AllSockets.TryGetValue(SocketId, out stale) && stale.StreamSocket != null)
+                    if (stale != null && stale.StreamSocket != null)
                     {
                         try { stale.StreamSocket.Dispose(); } catch { }
                     }
+                    // Never reuse an ID that Windows still knows about. A stale
+                    // broker record can make TransferOwnership fail with
+                    // E_ILLEGAL_METHOD_CALL even after its StreamSocket is closed.
+                    RotateSocketId(generation);
                 }
-                using (var connection = await BrokerConnection.ConnectAsync(ServerUri(true), taskId, token))
+                else if (forceReconnect) RotateSocketId(generation);
+                Uri serverUri;
+                try { serverUri = ServerUri(true); }
+                catch (Exception error) { throw new NotificationFailureException("server-settings", error); }
+                using (var connection = await BrokerConnection.ConnectAsync(serverUri, taskId, token))
                 {
                     if (!NotificationBridge.IsCurrent(generation)) return;
-                    await connection.TransferAsync(SocketPrefix + generation, true);
+                    await connection.TransferAsync(SocketId, true);
                     NotificationBridge.SetStatus("Connected. Notifications are automatic.");
                 }
             }
+        }
+
+        private static bool TryGetBrokerSocket(string id, out SocketActivityInformation information)
+        {
+            try { return SocketActivityInformation.AllSockets.TryGetValue(id, out information); }
+            catch (Exception error) { throw new NotificationFailureException("socket-registry", error); }
         }
 
         internal static async Task HandleSocketAsync(SocketActivityTriggerDetails details, Guid taskId, string generation, CancellationToken token)
@@ -58,7 +95,7 @@ namespace LiveBubbles.Notifications
             if (details.SocketInformation == null) return;
             if (details.SocketInformation.StreamSocket == null)
             {
-                if (NotificationBridge.IsCurrent(generation))
+                if (NotificationBridge.IsCurrent(generation) && details.SocketInformation.Id == SocketId)
                 {
                     await EnsureConnectedAsync(taskId, generation, token, true);
                     await ReconcileAsync(generation, token);
@@ -70,7 +107,7 @@ namespace LiveBubbles.Notifications
             {
                 using (var connection = new BrokerConnection(details.SocketInformation.StreamSocket))
                 {
-                    if (!NotificationBridge.IsCurrent(generation) || details.SocketInformation.Id != SocketPrefix + generation) return;
+                    if (!NotificationBridge.IsCurrent(generation) || details.SocketInformation.Id != SocketId) return;
                     if (details.Reason == SocketActivityTriggerReason.SocketClosed)
                     {
                         reconnect = true;
@@ -84,7 +121,7 @@ namespace LiveBubbles.Notifications
                         if (NotificationBridge.IsCurrent(generation))
                         {
                             connection.DetachStreams();
-                            await connection.TransferAsync(SocketPrefix + generation, false);
+                            await connection.TransferAsync(SocketId, false);
                         }
                     }
                     else if (details.Reason == SocketActivityTriggerReason.SocketActivity)
@@ -103,7 +140,7 @@ namespace LiveBubbles.Notifications
                         if (!reconnect && NotificationBridge.IsCurrent(generation))
                         {
                             connection.DetachStreams();
-                            await connection.TransferAsync(SocketPrefix + generation, false);
+                            await connection.TransferAsync(SocketId, false);
                         }
                     }
                     else

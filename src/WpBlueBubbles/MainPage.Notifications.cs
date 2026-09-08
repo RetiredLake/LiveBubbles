@@ -97,10 +97,19 @@ namespace WpBlueBubbles
         {
             if (_settingsLoaded && !_updatingNotifications) NotificationBridge.ShowPreviews = NotificationPreviewsToggle.IsOn;
         }
-        private void TestNotification_Click(object sender, RoutedEventArgs e)
+        private async void TestNotification_Click(object sender, RoutedEventArgs e)
         {
-            try { NotificationBridge.ShowTestNotification(); }
-            catch { NotificationsStatusText.Text = "Windows has blocked notifications for LiveBubbles."; }
+            try
+            {
+                await NotificationBridge.TestAsync();
+            }
+            catch
+            {
+                // NotificationBridge records the operation-specific developer
+                // detail; keep the visible status short and actionable.
+                NotificationsStatusText.Text = "Connection test failed. Open developer details for the failing step.";
+            }
+            finally { RefreshNotificationControls(); }
         }
         private async void RetryNotifications_Click(object sender, RoutedEventArgs e) { await StartNotificationsAsync(); }
 
