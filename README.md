@@ -24,9 +24,9 @@ the same C#/XAML application package on desktop Windows.
 - Share target, contact activation, media saving, and per-chat Start tiles.
 - Optional outbound read receipts, disabled by default.
 
-The v0.3.2.0 development source adds automatic notifications through the existing
+The v0.3.2.1 development source adds automatic notifications through the existing
 BlueBubbles connection, with native toasts, unread badges, Live Tiles, per-chat
-mute, and optional previews. No Firebase/WNS/relay setup is required from users.
+mute, and previews enabled by default with a private mode switch. No Firebase/WNS/relay setup is required from users.
 Background wake and delivery remain best-effort until real Lumia validation is complete.
 See [notification architecture and validation](docs/notifications-v0.3-plan.md).
 
@@ -86,7 +86,7 @@ clients takes priority while notifications are validated.
 
 ## Status
 
-The current release is **v0.3.2.0 LiveBubbles**, based on v0.3.1.2. Builds from v0.1.6.0 through v0.1.9.9
+The current release is **v0.3.2.1 LiveBubbles**, based on v0.3.2.0. Builds from v0.1.6.0 through v0.1.9.9
 are published as legacy betas for testing and historical preservation.
 
 The v0.2 series stores growing per-chat state in files rather than the

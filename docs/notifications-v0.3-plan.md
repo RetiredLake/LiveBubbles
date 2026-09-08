@@ -36,7 +36,8 @@ socket bridge, so it is an architectural reference, not proof of Lumia delivery.
   suppression, and bounded retention. Payload text and server passwords are not
   stored in the notification ledger.
 - `NotificationPresenter`: native toast, unread badge, primary Live Tile, and
-  `chat=<escaped-guid>` activation. Private previews are the default.
+  `chat=<escaped-guid>` activation. Message previews are enabled by default and
+  can be switched off for private notifications.
 - `MainPage.Notifications.cs`: settings and foreground visibility integration.
   Existing message fetching, sending, sharing, and media rendering remain intact.
 
@@ -63,9 +64,9 @@ The UI keeps its existing polling behavior.
 
 - Message notifications: automatically enabled on first successful sign-in;
   turning them off persists across launches.
-- Show names and message previews: optional, off by default.
-- Test notification: checks local Windows toast display without sending a message.
-- Reconnect notifications: retries using the existing saved sign-in.
+- Show names and message previews: enabled by default; turn the switch off for private notifications.
+- Test notification and reconnect controls: available only with Developer mode enabled.
+- Connection status and diagnostics: available only with Developer mode enabled.
 - Mute/unmute notifications: available in each conversation's chat-actions menu.
 
 Tapping a notification opens its conversation, including chats outside the selected
@@ -132,6 +133,6 @@ x86, and x64. Compilation does not verify broker wake or notification delivery.
 - Source preservation: BlueBubblesClient.cs, MessageItem.cs, 29 pre-existing
   message/media methods, and the XAML resources/message templates match b51f46d.
 - Generated manifests retain WpBlueBubbles / CN=retiredlake, show LiveBubbles
-  0.3.2.0, and register the new background runtime component.
+  0.3.2.1, and register the new background runtime component.
 - No app was installed and no live BlueBubbles server was contacted for testing.
   Device delivery remains unverified and requires real Lumia validation.

@@ -3,6 +3,18 @@
 All releases are beta software. Versions before v0.2.0.0 are retained as legacy
 builds and may contain bugs fixed by later releases.
 
+## v0.3.2.1 LiveBubbles
+
+- Fixes SocketActivityTrigger delivery by using the active background task
+  registration and reconnecting stale sockets after a close.
+- Keeps broker ownership across normal keep-alive callbacks instead of treating
+  the configured timer as an interruption.
+- Defaults notification previews to on; status, diagnostics, test, and reconnect
+  controls remain available only in Developer mode.
+- Corrects remaining LiveBubbles product-facing error text while preserving the
+  existing BlueBubbles server and media behavior.
+- Real Lumia background delivery still requires device validation.
+
 ## v0.3.2.0 LiveBubbles
 
 - Renames the displayed app to LiveBubbles while preserving installation identity,

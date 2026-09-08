@@ -60,6 +60,7 @@ namespace WpBlueBubbles
 
         private void RefreshNotificationControls()
         {
+            UpdateNotificationDeveloperPanel();
             if (NotificationsToggle == null || _updatingNotifications) return;
             _updatingNotifications = true;
             try
@@ -68,8 +69,15 @@ namespace WpBlueBubbles
                 NotificationPreviewsToggle.IsOn = NotificationBridge.ShowPreviews;
                 NotificationPreviewsToggle.IsEnabled = NotificationBridge.Enabled;
                 NotificationsStatusText.Text = string.IsNullOrWhiteSpace(NotificationBridge.Status) ? "Notifications connect automatically after sign-in." : NotificationBridge.Status;
+                NotificationDiagnosticsText.Text = string.IsNullOrWhiteSpace(NotificationBridge.Diagnostics) ? "No notification errors recorded." : "Developer details: " + NotificationBridge.Diagnostics;
             }
-            finally { _updatingNotifications = false; }
+            finally { _updatingNotifications = false; UpdateNotificationDeveloperPanel(); }
+        }
+
+        private void UpdateNotificationDeveloperPanel()
+        {
+            if (NotificationDeveloperPanel == null) return;
+            NotificationDeveloperPanel.Visibility = DeveloperModeToggle != null && DeveloperModeToggle.IsOn ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private async void NotificationsToggle_Toggled(object sender, RoutedEventArgs e)

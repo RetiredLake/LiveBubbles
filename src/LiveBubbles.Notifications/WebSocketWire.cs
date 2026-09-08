@@ -50,6 +50,7 @@ namespace LiveBubbles.Notifications
         }
 
         internal Task SendTextAsync(string value, CancellationToken token) { return WriteAsync(1, Encoding.UTF8.GetBytes(value), token); }
+        internal Task SendPingAsync(CancellationToken token) { return WriteAsync(9, new byte[0], token); }
 
         private async Task WriteAsync(byte opcode, byte[] payload, CancellationToken token)
         {

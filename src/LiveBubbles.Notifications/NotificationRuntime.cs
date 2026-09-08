@@ -25,17 +25,25 @@ namespace LiveBubbles.Notifications
             if (!root.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && !root.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) root = "http://" + root;
             if (root.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase)) root = root.Substring(0, root.Length - 7);
             var credential = new PasswordVault().Retrieve("WpBlueBubbles.Server", "guid"); credential.RetrievePassword();
-            string route = websocket ? "/socket.io/?EIO=4&transport=websocket&guid=" : "/api/v1/chat/query?password=";
+            string route = websocket ? "/socket.io/?EIO=4&transport=websocket&guid=" : "/api/v1/chat/query?guid=";
             return new Uri(root + route + Uri.EscapeDataString(credential.Password));
         }
 
-        internal static async Task EnsureConnectedAsync(Guid taskId, string generation, CancellationToken token)
+        internal static async Task EnsureConnectedAsync(Guid taskId, string generation, CancellationToken token, bool forceReconnect = false)
         {
             if (!NotificationBridge.IsCurrent(generation)) return;
             using (await NotificationStorage.LockAsync("notification-connection", token))
             {
                 if (!NotificationBridge.IsCurrent(generation)) return;
-                if (SocketActivityInformation.AllSockets.ContainsKey(SocketId)) return;
+                if (!forceReconnect && SocketActivityInformation.AllSockets.ContainsKey(SocketId)) return;
+                if (forceReconnect)
+                {
+                    SocketActivityInformation stale;
+                    if (SocketActivityInformation.AllSockets.TryGetValue(SocketId, out stale) && stale.StreamSocket != null)
+                    {
+                        try { stale.StreamSocket.Dispose(); } catch { }
+                    }
+                }
                 using (var connection = await BrokerConnection.ConnectAsync(ServerUri(true), taskId, token))
                 {
                     if (!NotificationBridge.IsCurrent(generation)) return;
@@ -48,14 +56,34 @@ namespace LiveBubbles.Notifications
         internal static async Task HandleSocketAsync(SocketActivityTriggerDetails details, Guid taskId, string generation, CancellationToken token)
         {
             if (details.SocketInformation == null) return;
+            if (details.SocketInformation.StreamSocket == null)
+            {
+                if (NotificationBridge.IsCurrent(generation))
+                {
+                    await EnsureConnectedAsync(taskId, generation, token, true);
+                    await ReconcileAsync(generation, token);
+                }
+                return;
+            }
             bool reconnect = false;
             using (await NotificationStorage.LockAsync("notification-connection", token))
             {
                 using (var connection = new BrokerConnection(details.SocketInformation.StreamSocket))
                 {
                     if (!NotificationBridge.IsCurrent(generation) || details.SocketInformation.Id != SocketPrefix + generation) return;
-                    if (details.Reason != SocketActivityTriggerReason.SocketActivity) reconnect = true;
-                    else
+                    if (details.Reason == SocketActivityTriggerReason.SocketClosed)
+                    {
+                        reconnect = true;
+                    }
+                    else if (details.Reason == SocketActivityTriggerReason.KeepAliveTimerExpired)
+                    {
+                        // A keep-alive callback is healthy broker activity. Send
+                        // a WebSocket ping and return ownership; do not tear down
+                        // the authenticated Engine.IO session.
+                        await connection.Wire.SendPingAsync(token);
+                        if (NotificationBridge.IsCurrent(generation)) await connection.TransferAsync(SocketPrefix + generation);
+                    }
+                    else if (details.Reason == SocketActivityTriggerReason.SocketActivity)
                     {
                         string packet;
                         using (var readDeadline = CancellationTokenSource.CreateLinkedTokenSource(token))
@@ -70,11 +98,15 @@ namespace LiveBubbles.Notifications
                         else if (packet == "1" || packet.StartsWith("41", StringComparison.Ordinal) || packet.StartsWith("44", StringComparison.Ordinal)) reconnect = true;
                         if (!reconnect && NotificationBridge.IsCurrent(generation)) await connection.TransferAsync(SocketPrefix + generation);
                     }
+                    else
+                    {
+                        reconnect = true;
+                    }
                 }
             }
             if (reconnect && NotificationBridge.IsCurrent(generation))
             {
-                await EnsureConnectedAsync(taskId, generation, token);
+                await EnsureConnectedAsync(taskId, generation, token, true);
                 await ReconcileAsync(generation, token);
             }
         }
@@ -131,6 +163,7 @@ namespace LiveBubbles.Notifications
             using (await NotificationStorage.LockAsync("notification-connection", token))
                 foreach (var info in SocketActivityInformation.AllSockets.Where(pair => pair.Key.StartsWith(SocketPrefix, StringComparison.Ordinal)).Select(pair => pair.Value).ToList())
                 {
+                    if (info.StreamSocket == null) continue;
                     using (var socket = info.StreamSocket) { await socket.CancelIOAsync(); }
                 }
         }

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
@@ -22,13 +23,20 @@ namespace LiveBubbles.Notifications
         private static string Text(string key) { object value; return Values.TryGetValue(Prefix + key, out value) ? value as string ?? "" : ""; }
         private static long Number(string key) { long value; return long.TryParse(Text(key), out value) ? value : 0; }
         public static bool Enabled { get { return Flag("Enabled"); } }
-        public static bool ShowPreviews { get { return Flag("Previews"); } set { Values[Prefix + "Previews"] = value; } }
+        public static bool ShowPreviews { get { return !Values.ContainsKey(Prefix + "Previews") || Flag("Previews"); } set { Values[Prefix + "Previews"] = value; } }
         public static string Status { get { return Text("Status"); } }
+        public static string Diagnostics { get { return Text("Diagnostics"); } }
         internal static string Generation { get { return Text("Generation"); } }
         internal static long EnabledSince { get { return Number("EnabledSince"); } }
         internal static bool IsCurrent(string generation) { return Enabled && generation.Length > 0 && Generation == generation; }
         internal static string ActiveChat { get { return Number("ActiveUntil") > NotificationStorage.Now ? Text("ActiveChat") : ""; } }
         internal static void SetStatus(string value) { Values[Prefix + "Status"] = value; }
+        internal static void RecordError(string stage, Exception error)
+        {
+            string type = error == null ? "Unknown" : error.GetType().Name;
+            string hresult = error == null ? "" : "0x" + error.HResult.ToString("X8", CultureInfo.InvariantCulture);
+            Values[Prefix + "Diagnostics"] = (stage ?? "notification") + ": " + type + (hresult.Length == 0 ? "" : " (" + hresult + ")");
+        }
 
         public static void SetActiveChat(string chatGuid)
         {
@@ -97,7 +105,7 @@ namespace LiveBubbles.Notifications
                         await NotificationRuntime.ReconcileAsync(generation, deadline.Token);
                     }
                 }
-                catch { if (Enabled) SetStatus("Notification connection unavailable. Retrying automatically; open the app to retry now."); }
+                catch (Exception ex) { RecordError("registration", ex); if (Enabled) SetStatus("Notification connection unavailable. Retrying automatically; open the app to retry now."); }
             }
         }
 

@@ -65,7 +65,11 @@ namespace LiveBubbles.Notifications
         internal async Task TransferAsync(string id)
         {
             await Socket.CancelIOAsync();
-            Socket.TransferOwnership(id, null, TimeSpan.FromSeconds(60));
+            // Return ownership without installing a one-minute broker timer. The
+            // server's Engine.IO heartbeat and SocketActivityTrigger wakeups keep
+            // this connection alive; an ownership timeout would create a false
+            // disconnect every minute.
+            Socket.TransferOwnership(id);
             Socket = null; // Ownership belongs to Windows; never dispose the transferred socket.
         }
         public void Dispose() { if (Socket != null) { Socket.Dispose(); Socket = null; } }

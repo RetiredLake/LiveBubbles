@@ -47,7 +47,7 @@ namespace LiveBubbles.Notifications
                     }
                     Show(NotificationBridge.ShowPreviews && !string.IsNullOrWhiteSpace(title) ? title : "LiveBubbles", body, chat);
                 }
-                catch { NotificationBridge.SetStatus("Windows has blocked notification display for LiveBubbles."); }
+                catch (Exception ex) { NotificationBridge.RecordError("toast", ex); NotificationBridge.SetStatus("Windows has blocked notification display for LiveBubbles."); }
             });
         }
 

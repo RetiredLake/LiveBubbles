@@ -261,7 +261,7 @@ namespace WpBlueBubbles
                 OpenPendingActivation();
                 StartNotificationsWithoutWaiting();
                 if (initialSyncError == null) ShowStatus(string.Empty, false);
-                else ShowStatus(FriendlyError(initialSyncError, "load chats") + " BlueBubbles will retry automatically.", true);
+                else ShowStatus(FriendlyError(initialSyncError, "load chats") + " LiveBubbles will retry automatically.", true);
                 return true;
             }
             catch (Exception ex)
@@ -913,7 +913,7 @@ namespace WpBlueBubbles
             var fromShareTarget = _shareOperation != null;
             if (_client == null && !await WaitForClientAsync())
             {
-                FinishFailedCompose(fromShareTarget, "BlueBubbles is not connected to the server.");
+                FinishFailedCompose(fromShareTarget, "LiveBubbles is not connected to the server.");
                 return;
             }
             var message = ComposeMessageBox.Text.Trim();
@@ -2120,7 +2120,7 @@ namespace WpBlueBubbles
                 friendly = "The BlueBubbles server is offline or unreachable. Check that the Mac and server are running on the same network.";
             else if (detail.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0 || detail.IndexOf("404", StringComparison.OrdinalIgnoreCase) >= 0)
                 friendly = "The conversation was not found on the BlueBubbles server. Refresh Chats and try again.";
-            else friendly = "BlueBubbles could not " + action + ".";
+            else friendly = "LiveBubbles could not " + action + ".";
             if (!DeveloperModeToggle.IsOn || detail.Length == 0) return friendly;
             if (detail.Length > 900) detail = detail.Substring(0, 900).TrimEnd() + "...";
             return friendly + "\r\n\r\nDeveloper details: " + root.GetType().Name + ": " + detail;

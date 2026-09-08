@@ -176,10 +176,13 @@
             <TextBlock Text="Notifications" FontSize="22"/>
             <ToggleSwitch x:Name="NotificationsToggle" Header="Message notifications" OffContent="Off" OnContent="On" Toggled="NotificationsToggle_Toggled" Margin="0,12,0,0"/>
             <ToggleSwitch x:Name="NotificationPreviewsToggle" Header="Show names and message previews" OffContent="Private" OnContent="Show previews" Toggled="NotificationPreviewsToggle_Toggled" Margin="0,12,0,0"/>
-            <TextBlock x:Name="NotificationsStatusText" Text="Notifications connect automatically after sign-in." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,12,0,0"/>
-            <TextBlock Text="Uses your existing BlueBubbles connection. Windows may delay background delivery while saving battery or offline." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
-            <Button Content="Test notification" Click="TestNotification_Click" HorizontalAlignment="Left" Margin="0,12,0,0"/>
-            <HyperlinkButton Content="Reconnect notifications" Click="RetryNotifications_Click" HorizontalAlignment="Left" Padding="0" Margin="0,10,0,0"/>
+            <StackPanel x:Name="NotificationDeveloperPanel" Visibility="Collapsed">
+              <TextBlock x:Name="NotificationsStatusText" Text="Notifications connect automatically after sign-in." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,12,0,0"/>
+              <TextBlock Text="Uses your existing BlueBubbles connection. Windows may delay background delivery while saving battery or offline." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+              <TextBlock x:Name="NotificationDiagnosticsText" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+              <Button Content="Test notification" Click="TestNotification_Click" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+              <HyperlinkButton Content="Reconnect notifications" Click="RetryNotifications_Click" HorizontalAlignment="Left" Padding="0" Margin="0,10,0,0"/>
+            </StackPanel>
 
             <Border BorderBrush="{StaticResource AppBorderBrush}" BorderThickness="0,1,0,0" Margin="0,26,0,22"/>
             <TextBlock Text="Theme" FontSize="22"/>
