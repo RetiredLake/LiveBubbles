@@ -32,7 +32,7 @@ namespace LiveBubbles.Notifications
                     {
                         var socketTask = BackgroundTaskRegistration.AllTasks.Values.FirstOrDefault(t => t.Name == NotificationBridge.TaskName);
                         if (socketTask == null) return;
-                        await NotificationRuntime.EnsureConnectedAsync(socketTask.TaskId, generation, deadline.Token);
+                        await NotificationRuntime.EnsureConnectedAsync(socketTask.TaskId, generation, deadline.Token, true);
                         await NotificationRuntime.ReconcileAsync(generation, deadline.Token);
                     }
                 }

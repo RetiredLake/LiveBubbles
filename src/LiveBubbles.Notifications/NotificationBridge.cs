@@ -28,9 +28,11 @@ namespace LiveBubbles.Notifications
         public static string Diagnostics { get { return Text("Diagnostics"); } }
         internal static string Generation { get { return Text("Generation"); } }
         internal static long EnabledSince { get { return Number("EnabledSince"); } }
+        internal static long LastBackgroundActivity { get { return Number("LastBackgroundActivity"); } }
         internal static bool IsCurrent(string generation) { return Enabled && generation.Length > 0 && Generation == generation; }
         internal static string ActiveChat { get { return Number("ActiveUntil") > NotificationStorage.Now ? Text("ActiveChat") : ""; } }
         internal static void SetStatus(string value) { Values[Prefix + "Status"] = value; }
+        internal static void MarkBackgroundActivity() { Values[Prefix + "LastBackgroundActivity"] = NotificationStorage.Now.ToString(CultureInfo.InvariantCulture); }
         internal static void RecordError(string stage, Exception error)
         {
             string type = error == null ? "Unknown" : error.GetType().Name;
@@ -59,11 +61,12 @@ namespace LiveBubbles.Notifications
         private static async Task TestCoreAsync()
         {
             if (!Enabled) throw new InvalidOperationException("Enable notifications before testing the connection.");
-            using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20)))
+            using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(45)))
             {
                 try
                 {
                     string generation;
+                    long testStarted = NotificationStorage.Now;
                     var socketTask = BackgroundTaskRegistration.AllTasks.Values.FirstOrDefault(t => t.Name == TaskName);
                     if (socketTask == null)
                     {
@@ -77,6 +80,12 @@ namespace LiveBubbles.Notifications
                     // this cannot pass merely because a local toast is allowed.
                     await NotificationRuntime.EnsureConnectedAsync(socketTask.TaskId, generation, deadline.Token, true);
                     if (!IsCurrent(generation)) throw new InvalidOperationException("Notifications are no longer enabled.");
+                    try { await WaitForBackgroundActivityAsync(generation, testStarted, deadline.Token); }
+                    catch (OperationCanceledException)
+                    {
+                        if (!IsCurrent(generation)) throw;
+                        throw new NotificationFailureException("background-probe", new TimeoutException("No background notification callback was observed."));
+                    }
                     try { ShowTestNotification(); }
                     catch (Exception error) { throw new NotificationFailureException("toast-test", error); }
                     SetStatus("Connection and local notification test passed.");
@@ -93,6 +102,18 @@ namespace LiveBubbles.Notifications
                     SetStatus("Notification connection test failed. See developer details.");
                     throw;
                 }
+            }
+        }
+
+        private static async Task WaitForBackgroundActivityAsync(string generation, long started, CancellationToken token)
+        {
+            SetStatus("Waiting for a background notification callback...");
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                if (!IsCurrent(generation)) throw new InvalidOperationException("Notifications are no longer enabled.");
+                if (LastBackgroundActivity >= started) return;
+                await Task.Delay(500, token);
             }
         }
 

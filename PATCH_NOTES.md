@@ -3,6 +3,15 @@
 All releases are beta software. Versions before v0.2.0.0 are retained as legacy
 builds and may contain bugs fixed by later releases.
 
+## v0.3.2.5 LiveBubbles
+
+- Reclaims the socket activity object once per background callback so a stale
+  broker wrapper cannot trigger `E_ILLEGAL_METHOD_CALL` during activity handling.
+- Reconnects and reconciles automatically when Windows returns invalid broker
+  metadata.
+- Makes the Developer-mode test wait for a successful background callback before
+  showing its local test toast, preventing false-positive test results.
+
 ## v0.3.2.4 LiveBubbles
 
 - Rebuilds notification task registration without calling the failing

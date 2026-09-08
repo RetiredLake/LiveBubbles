@@ -59,13 +59,19 @@ namespace LiveBubbles.Notifications
                 string socketId = SocketId;
                 SocketActivityInformation stale;
                 bool hasEntry = TryGetBrokerSocket(socketId, out stale);
-                if (!forceReconnect && hasEntry && stale != null && stale.StreamSocket != null) return;
+                StreamSocket existing = null;
+                if (forceReconnect && hasEntry && stale != null)
+                {
+                    try { existing = stale.StreamSocket; }
+                    catch (Exception) { existing = null; }
+                }
+                // Presence in AllSockets means the broker still owns this ID.
+                // Do not read StreamSocket merely to test that state: reading it
+                // reclaims ownership and would strand the socket on this path.
+                if (!forceReconnect && hasEntry) return;
                 if (hasEntry)
                 {
-                    if (stale != null && stale.StreamSocket != null)
-                    {
-                        try { stale.StreamSocket.Dispose(); } catch { }
-                    }
+                    if (existing != null) { try { existing.Dispose(); } catch { } }
                     // Never reuse an ID that Windows still knows about. A stale
                     // broker record can make TransferOwnership fail with
                     // E_ILLEGAL_METHOD_CALL even after its StreamSocket is closed.
@@ -92,10 +98,22 @@ namespace LiveBubbles.Notifications
 
         internal static async Task HandleSocketAsync(SocketActivityTriggerDetails details, Guid taskId, string generation, CancellationToken token)
         {
-            if (details.SocketInformation == null) return;
-            if (details.SocketInformation.StreamSocket == null)
+            SocketActivityInformation information;
+            try { information = details == null ? null : details.SocketInformation; }
+            catch (Exception error) { await RecoverAfterBrokerMetadataFailureAsync(taskId, generation, token, "socket-details", error); return; }
+            if (information == null) return;
+            string socketId;
+            try { socketId = information.Id ?? ""; }
+            catch (Exception error) { await RecoverAfterBrokerMetadataFailureAsync(taskId, generation, token, "socket-id", error); return; }
+            StreamSocket socket;
+            try { socket = information.StreamSocket; }
+            catch (Exception error) { await RecoverAfterBrokerMetadataFailureAsync(taskId, generation, token, "socket-reclaim", error); return; }
+            SocketActivityTriggerReason reason;
+            try { reason = details.Reason; }
+            catch (Exception error) { throw new NotificationFailureException("socket-reason", error); }
+            if (socket == null)
             {
-                if (NotificationBridge.IsCurrent(generation) && details.SocketInformation.Id == SocketId)
+                if (NotificationBridge.IsCurrent(generation) && socketId == SocketId)
                 {
                     await EnsureConnectedAsync(taskId, generation, token, true);
                     await ReconcileAsync(generation, token);
@@ -105,14 +123,14 @@ namespace LiveBubbles.Notifications
             bool reconnect = false;
             using (await NotificationStorage.LockAsync("notification-connection", token))
             {
-                using (var connection = new BrokerConnection(details.SocketInformation.StreamSocket))
+                using (var connection = new BrokerConnection(socket))
                 {
-                    if (!NotificationBridge.IsCurrent(generation) || details.SocketInformation.Id != SocketId) return;
-                    if (details.Reason == SocketActivityTriggerReason.SocketClosed)
+                    if (!NotificationBridge.IsCurrent(generation) || socketId != SocketId) return;
+                    if (reason == SocketActivityTriggerReason.SocketClosed)
                     {
                         reconnect = true;
                     }
-                    else if (details.Reason == SocketActivityTriggerReason.KeepAliveTimerExpired)
+                    else if (reason == SocketActivityTriggerReason.KeepAliveTimerExpired)
                     {
                         // A keep-alive callback is healthy broker activity. Send
                         // a WebSocket ping and return ownership; do not tear down
@@ -122,9 +140,10 @@ namespace LiveBubbles.Notifications
                         {
                             connection.DetachStreams();
                             await connection.TransferAsync(SocketId, false);
+                            NotificationBridge.MarkBackgroundActivity();
                         }
                     }
-                    else if (details.Reason == SocketActivityTriggerReason.SocketActivity)
+                    else if (reason == SocketActivityTriggerReason.SocketActivity)
                     {
                         string packet;
                         using (var readDeadline = CancellationTokenSource.CreateLinkedTokenSource(token))
@@ -141,6 +160,7 @@ namespace LiveBubbles.Notifications
                         {
                             connection.DetachStreams();
                             await connection.TransferAsync(SocketId, false);
+                            NotificationBridge.MarkBackgroundActivity();
                         }
                     }
                     else
@@ -154,6 +174,18 @@ namespace LiveBubbles.Notifications
                 await EnsureConnectedAsync(taskId, generation, token, true);
                 await ReconcileAsync(generation, token);
             }
+        }
+
+        private static async Task RecoverAfterBrokerMetadataFailureAsync(Guid taskId, string generation, CancellationToken token, string stage, Exception original)
+        {
+            if (!NotificationBridge.IsCurrent(generation)) throw new NotificationFailureException(stage, original);
+            try
+            {
+                await EnsureConnectedAsync(taskId, generation, token, true);
+                await ReconcileAsync(generation, token);
+            }
+            catch (NotificationFailureException) { throw; }
+            catch (Exception error) { throw new NotificationFailureException(stage + "-reconnect", error); }
         }
 
         internal static async Task ProcessEventAsync(string payload, string generation, CancellationToken token)
@@ -208,8 +240,11 @@ namespace LiveBubbles.Notifications
             using (await NotificationStorage.LockAsync("notification-connection", token))
                 foreach (var info in SocketActivityInformation.AllSockets.Where(pair => pair.Key.StartsWith(SocketPrefix, StringComparison.Ordinal)).Select(pair => pair.Value).ToList())
                 {
-                    if (info.StreamSocket == null) continue;
-                    using (var socket = info.StreamSocket) { await socket.CancelIOAsync(); }
+                    StreamSocket socket = null;
+                    try { socket = info == null ? null : info.StreamSocket; }
+                    catch { }
+                    if (socket == null) continue;
+                    using (socket) { await socket.CancelIOAsync(); }
                 }
         }
     }
