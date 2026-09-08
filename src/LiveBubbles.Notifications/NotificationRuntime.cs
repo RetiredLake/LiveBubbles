@@ -47,7 +47,7 @@ namespace LiveBubbles.Notifications
                 using (var connection = await BrokerConnection.ConnectAsync(ServerUri(true), taskId, token))
                 {
                     if (!NotificationBridge.IsCurrent(generation)) return;
-                    await connection.TransferAsync(SocketPrefix + generation);
+                    await connection.TransferAsync(SocketPrefix + generation, true);
                     NotificationBridge.SetStatus("Connected. Notifications are automatic.");
                 }
             }
@@ -81,7 +81,11 @@ namespace LiveBubbles.Notifications
                         // a WebSocket ping and return ownership; do not tear down
                         // the authenticated Engine.IO session.
                         await connection.Wire.SendPingAsync(token);
-                        if (NotificationBridge.IsCurrent(generation)) await connection.TransferAsync(SocketPrefix + generation);
+                        if (NotificationBridge.IsCurrent(generation))
+                        {
+                            connection.DetachStreams();
+                            await connection.TransferAsync(SocketPrefix + generation, false);
+                        }
                     }
                     else if (details.Reason == SocketActivityTriggerReason.SocketActivity)
                     {
@@ -96,7 +100,11 @@ namespace LiveBubbles.Notifications
                         else if (packet.StartsWith("2", StringComparison.Ordinal)) await connection.Wire.SendTextAsync("3" + packet.Substring(1), token);
                         else if (packet.StartsWith("42", StringComparison.Ordinal)) await ProcessEventAsync(packet.Substring(2), generation, token);
                         else if (packet == "1" || packet.StartsWith("41", StringComparison.Ordinal) || packet.StartsWith("44", StringComparison.Ordinal)) reconnect = true;
-                        if (!reconnect && NotificationBridge.IsCurrent(generation)) await connection.TransferAsync(SocketPrefix + generation);
+                        if (!reconnect && NotificationBridge.IsCurrent(generation))
+                        {
+                            connection.DetachStreams();
+                            await connection.TransferAsync(SocketPrefix + generation, false);
+                        }
                     }
                     else
                     {

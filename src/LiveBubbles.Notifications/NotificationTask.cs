@@ -36,6 +36,7 @@ namespace LiveBubbles.Notifications
                     }
                 }
                 catch (OperationCanceledException) { }
+                catch (NotificationFailureException ex) { NotificationBridge.RecordError(ex.Stage, ex.InnerException ?? ex); if (NotificationBridge.Enabled) NotificationBridge.SetStatus("Notification connection interrupted. Retrying automatically."); }
                 catch (Exception ex) { NotificationBridge.RecordError("background", ex); if (NotificationBridge.Enabled) NotificationBridge.SetStatus("Notification connection interrupted. Retrying automatically."); }
                 finally { taskInstance.Canceled -= canceled; deferral.Complete(); }
             }

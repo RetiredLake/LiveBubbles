@@ -11,6 +11,16 @@ using Windows.Storage.Streams;
 
 namespace LiveBubbles.Notifications
 {
+    internal sealed class NotificationFailureException : Exception
+    {
+        internal string Stage { get; private set; }
+        internal NotificationFailureException(string stage, Exception inner)
+            : base(stage, inner)
+        {
+            Stage = stage;
+        }
+    }
+
     internal sealed class BrokerConnection : IDisposable
     {
         internal StreamSocket Socket;
@@ -27,7 +37,14 @@ namespace LiveBubbles.Notifications
             try
             {
                 socket.Control.KeepAlive = true;
-                socket.EnableTransferOwnership(taskId, (new Windows.ApplicationModel.Background.SocketActivityTrigger()).IsWakeFromLowPowerSupported ? SocketActivityConnectedStandbyAction.Wake : SocketActivityConnectedStandbyAction.DoNotWake);
+                try
+                {
+                    socket.EnableTransferOwnership(taskId, (new Windows.ApplicationModel.Background.SocketActivityTrigger()).IsWakeFromLowPowerSupported ? SocketActivityConnectedStandbyAction.Wake : SocketActivityConnectedStandbyAction.DoNotWake);
+                }
+                catch (Exception error)
+                {
+                    throw new NotificationFailureException("enable-transfer-ownership", error);
+                }
                 await socket.ConnectAsync(new HostName(uri.DnsSafeHost), uri.Port.ToString(),
                     uri.Scheme == "https" ? SocketProtectionLevel.Tls12 : SocketProtectionLevel.PlainSocket).AsTask(token);
                 var connection = new BrokerConnection(socket);
@@ -62,15 +79,43 @@ namespace LiveBubbles.Notifications
             catch { socket.Dispose(); throw; }
         }
 
-        internal async Task TransferAsync(string id)
+        internal async Task TransferAsync(string id, bool cancelPendingIo)
         {
-            await Socket.CancelIOAsync();
+            // Foreground sockets may still have app-owned I/O. A socket handed
+            // to SocketActivityTrigger is already reclaimed by Windows, so the
+            // background path must return it without another CancelIOAsync call.
+            if (cancelPendingIo)
+            {
+                try
+                {
+                    await Socket.CancelIOAsync();
+                }
+                catch (Exception error)
+                {
+                    throw new NotificationFailureException("cancel-io", error);
+                }
+            }
             // Return ownership without installing a one-minute broker timer. The
             // server's Engine.IO heartbeat and SocketActivityTrigger wakeups keep
             // this connection alive; an ownership timeout would create a false
             // disconnect every minute.
-            Socket.TransferOwnership(id);
+            try
+            {
+                Socket.TransferOwnership(id);
+            }
+            catch (Exception error)
+            {
+                throw new NotificationFailureException("transfer-ownership", error);
+            }
             Socket = null; // Ownership belongs to Windows; never dispose the transferred socket.
+        }
+        internal void DetachStreams()
+        {
+            // The background broker owns the socket after TransferOwnership. Drop
+            // the managed stream wrappers before returning it so no wrapper can
+            // issue I/O or close the broker-owned socket later.
+            stream = null;
+            Wire = null;
         }
         public void Dispose() { if (Socket != null) { Socket.Dispose(); Socket = null; } }
 
