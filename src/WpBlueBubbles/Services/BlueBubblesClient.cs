@@ -266,14 +266,18 @@ namespace WpBlueBubbles.Services
         public async Task<ChatItem> FindDirectChatAsync(string address, string preferredService)
         {
             if (string.IsNullOrWhiteSpace(address)) return null;
-            var services = new[] { preferredService, "iMessage", "SMS", "RCS" }
+            var addresses = new[] { CanonicalizeAddress(address), address.Trim() }
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Distinct(StringComparer.OrdinalIgnoreCase);
+            var services = new[] { preferredService, "iMessage", "SMS", "RCS", "any" }
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+            foreach (var candidate in addresses)
             foreach (var service in services)
             {
                 try
                 {
-                    var guid = service + ";-;" + address.Trim();
+                    var guid = service + ";-;" + candidate;
                     var root = await GetRootAsync("chat/" + Uri.EscapeDataString(guid) + "?with=participants,lastmessage");
                     JsonObject data;
                     var chat = JsonValueReader.TryObject(root, "data", out data) ? data : root;
@@ -285,6 +289,18 @@ namespace WpBlueBubbles.Services
                 }
             }
             return null;
+        }
+
+        private static string CanonicalizeAddress(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+            var trimmed = value.Trim();
+            if (trimmed.IndexOf('@') >= 0) return trimmed.ToLowerInvariant();
+            var digits = new string(trimmed.Where(char.IsDigit).ToArray());
+            if (digits.Length == 10) return "+1" + digits;
+            if (digits.Length == 11 && digits.StartsWith("1")) return "+" + digits;
+            if (trimmed.StartsWith("+", StringComparison.Ordinal) && digits.Length > 0) return "+" + digits;
+            return trimmed;
         }
 
         public string GetGroupIconUri(string chatGuid)

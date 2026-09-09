@@ -13,6 +13,7 @@ namespace WpBlueBubbles
     {
         internal string PendingChatGuid { get; private set; }
         internal string PendingRecipient { get; private set; }
+        internal string PendingReply { get; private set; }
         public App()
         {
             UnhandledException += App_UnhandledException;
@@ -50,13 +51,14 @@ namespace WpBlueBubbles
                 }
             }
             var page = frame.Content as MainPage;
-            if (page != null && page.IsClientReady && !string.IsNullOrWhiteSpace(PendingChatGuid)) page.OpenChatFromNotification(TakePendingChatGuid());
+            if (page != null && page.IsClientReady && !string.IsNullOrWhiteSpace(PendingChatGuid)) page.OpenChatFromNotification(TakePendingChatGuid(), TakePendingReply());
             Window.Current.Activate();
         }
 
         protected override void OnActivated(IActivatedEventArgs args)
         {
             ReadLaunchArguments(ReadToastArguments(args));
+            PendingReply = ReadToastReply(args);
             PendingRecipient = ReadContactRecipient(args);
             var frame = Window.Current.Content as Frame;
             if (frame == null)
@@ -69,7 +71,7 @@ namespace WpBlueBubbles
             if (page != null && page.IsClientReady && !string.IsNullOrWhiteSpace(PendingChatGuid))
             {
                 var chatGuid = TakePendingChatGuid();
-                page.OpenChatFromNotification(chatGuid);
+                page.OpenChatFromNotification(chatGuid, TakePendingReply());
             }
             if (page != null && page.IsClientReady && !string.IsNullOrWhiteSpace(PendingRecipient))
             {
@@ -130,12 +132,25 @@ namespace WpBlueBubbles
             return value;
         }
 
+        internal string TakePendingReply()
+        {
+            var value = PendingReply;
+            PendingReply = null;
+            return value;
+        }
+
         private void ReadLaunchArguments(string arguments)
         {
             if (string.IsNullOrWhiteSpace(arguments)) return;
-            const string prefix = "chat=";
-            if (arguments.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
-                PendingChatGuid = System.Uri.UnescapeDataString(arguments.Substring(prefix.Length));
+            foreach (var part in arguments.Split(new[] { '&', ';' }, System.StringSplitOptions.RemoveEmptyEntries))
+            {
+                const string prefix = "chat=";
+                if (part.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    PendingChatGuid = System.Uri.UnescapeDataString(part.Substring(prefix.Length));
+                    return;
+                }
+            }
         }
 
         private static string ReadContactRecipient(IActivatedEventArgs args)
@@ -147,7 +162,10 @@ namespace WpBlueBubbles
                 if (type.FullName != "Windows.ApplicationModel.Activation.ContactMessageActivatedEventArgs") return string.Empty;
                 var serviceId = type.GetProperty("ServiceId")?.GetValue(args) as string;
                 var serviceUserId = type.GetProperty("ServiceUserId")?.GetValue(args) as string;
-                if (string.Equals(serviceId, "telephone", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(serviceUserId)) return serviceUserId;
+                // People supplies the selected phone number or email address as
+                // ServiceUserId. Prefer it so a contact with both fields opens
+                // the exact method the user selected.
+                if (!string.IsNullOrWhiteSpace(serviceUserId)) return serviceUserId;
                 var contact = type.GetProperty("Contact")?.GetValue(args);
                 var phones = contact?.GetType().GetProperty("Phones")?.GetValue(contact) as System.Collections.IEnumerable;
                 if (phones != null)
@@ -165,7 +183,6 @@ namespace WpBlueBubbles
                         var address = email?.GetType().GetProperty("Address")?.GetValue(email) as string;
                         if (!string.IsNullOrWhiteSpace(address)) return address;
                     }
-                if (!string.IsNullOrWhiteSpace(serviceUserId)) return serviceUserId;
             }
             catch { }
             return string.Empty;
@@ -178,6 +195,20 @@ namespace WpBlueBubbles
                 var type = args.GetType();
                 if (type.FullName != "Windows.ApplicationModel.Activation.ToastNotificationActivatedEventArgs") return string.Empty;
                 return type.GetProperty("Argument")?.GetValue(args) as string ?? string.Empty;
+            }
+            catch { return string.Empty; }
+        }
+
+        private static string ReadToastReply(IActivatedEventArgs args)
+        {
+            try
+            {
+                var type = args.GetType();
+                if (type.FullName != "Windows.ApplicationModel.Activation.ToastNotificationActivatedEventArgs") return string.Empty;
+                var input = type.GetProperty("UserInput")?.GetValue(args);
+                var item = input?.GetType().GetProperty("Item");
+                var value = item?.GetValue(input, new object[] { "reply" });
+                return value as string ?? value?.ToString() ?? string.Empty;
             }
             catch { return string.Empty; }
         }

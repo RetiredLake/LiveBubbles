@@ -30,6 +30,7 @@ using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Documents;
+using LiveBubbles.Notifications;
 using WpBlueBubbles.Models;
 using WpBlueBubbles.Services;
 
@@ -688,14 +689,15 @@ namespace WpBlueBubbles
                     return Task.CompletedTask;
                 }, "copy the message"));
             }
-            if (hasMedia && message.IsImageAttachment)
+            if (hasMedia && (message.IsImageAttachment || message.IsVideoAttachment))
             {
                 actions.Add(Tuple.Create<string, Func<Task>, string>("Save", async () =>
                 {
                     var bytes = await _client.DownloadAttachmentAsync(message.AttachmentGuid);
-                    var file = await KnownFolders.PicturesLibrary.CreateFileAsync(GetMediaFileName(message), CreationCollisionOption.GenerateUniqueName);
+                    var folder = message.IsVideoAttachment ? KnownFolders.VideosLibrary : KnownFolders.PicturesLibrary;
+                    var file = await folder.CreateFileAsync(GetMediaFileName(message), CreationCollisionOption.GenerateUniqueName);
                     await FileIO.WriteBytesAsync(file, bytes);
-                    await new MessageDialog("Saved to Pictures.", "LiveBubbles").ShowAsync();
+                    await new MessageDialog(message.IsVideoAttachment ? "Saved to Videos." : "Saved to Pictures.", "LiveBubbles").ShowAsync();
                 }, "save the media"));
             }
             if (actions.Count > 0) ShowDarkActionFlyout(element, actions);
@@ -804,7 +806,7 @@ namespace WpBlueBubbles
             RecipientBox.Text = recipient;
         }
 
-        public async void OpenChatFromNotification(string chatGuid)
+        public async void OpenChatFromNotification(string chatGuid, string reply = null)
         {
             if (string.IsNullOrWhiteSpace(chatGuid)) return;
             var activationGeneration = ++_messageLoadGeneration;
@@ -821,7 +823,16 @@ namespace WpBlueBubbles
             MessagesList.Visibility = Visibility.Visible;
             Composer.Visibility = Visibility.Visible;
             if (UseSinglePaneLayout) ReturnToConversation();
-            try { await RefreshMessagesAsync(true); await MarkSelectedChatReadAsync(); }
+            try
+            {
+                await RefreshMessagesAsync(true);
+                if (!string.IsNullOrWhiteSpace(reply) && _client != null && _selectedChat != null)
+                {
+                    await _client.SendTextAsync(_selectedChat.Guid, reply.Trim());
+                    await RefreshMessagesAsync(true);
+                }
+                await MarkSelectedChatReadAsync();
+            }
             catch (Exception ex) { ShowStatus(FriendlyError(ex, "open the conversation"), true); }
         }
 
@@ -874,7 +885,7 @@ namespace WpBlueBubbles
                 var allIMessage = true;
                 foreach (var recipient in recipients)
                 {
-                    if (!await _client.GetIMessageAvailabilityAsync(recipient)) allIMessage = false;
+                    if (!await _client.GetIMessageAvailabilityAsync(CanonicalizeRecipient(recipient))) allIMessage = false;
                     if (generation != _availabilityGeneration) return;
                 }
                 SetComposeService(allIMessage ? "iMessage" : "SMS");
@@ -920,11 +931,13 @@ namespace WpBlueBubbles
             if (string.IsNullOrWhiteSpace(message) && _sharedFiles.Count == 0) { ShowStatus("Write a message or choose an attachment before sending.", true); return; }
             var recipient = RecipientBox.Text.Trim();
             var recipients = ParseRecipients(recipient);
+            var wireRecipients = recipients.Select(CanonicalizeRecipient).Where(value => value.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (_composeSelectedChat == null) _composeSelectedChat = FindExistingChat(recipients);
-            if (_composeSelectedChat == null && recipients.Count == 1) _composeSelectedChat = await _client.FindDirectChatAsync(recipients[0], _composeService);
+            if (_composeSelectedChat == null && wireRecipients.Count == 1) _composeSelectedChat = await _client.FindDirectChatAsync(wireRecipients[0], _composeService);
             if (_composeSelectedChat == null && recipients.Count == 0) { ShowStatus("Enter at least one phone number or email address.", true); return; }
             if (_composeSelectedChat == null && recipients.Count > 1 && !_serverCapabilities.CanUsePrivateApi) { ShowStatus("Creating group chats requires the server's Private API helper.", true); return; }
-            if (_composeSelectedChat == null && string.IsNullOrWhiteSpace(message))
+            bool canSendAttachmentOnly = _composeSelectedChat == null && string.IsNullOrWhiteSpace(message) && _sharedFiles.Count > 0 && wireRecipients.Count == 1;
+            if (_composeSelectedChat == null && string.IsNullOrWhiteSpace(message) && !canSendAttachmentOnly)
             {
                 var error = "A text message is required to start a brand-new conversation before sending attachments.";
                 if (fromShareTarget) FinishFailedCompose(true, error);
@@ -941,14 +954,41 @@ namespace WpBlueBubbles
             {
                 SetSyncing(true, "Sending message...");
                 ChatItem chat = _composeSelectedChat;
+                bool attachmentsSentDirectly = false;
                 if (chat == null)
                 {
-                    chat = await _client.CreateChatAsync(recipients, message, _composeService);
-                    sendAccepted = true;
-                    if (chat == null || string.IsNullOrWhiteSpace(chat.Guid))
+                    if (canSendAttachmentOnly)
                     {
+                        var service = string.IsNullOrWhiteSpace(_composeService) ? "iMessage" : _composeService;
+                        var inferredGuid = service + ";-;" + wireRecipients[0];
+                        foreach (var file in _sharedFiles.ToList())
+                        {
+                            await _client.SendAttachmentAsync(inferredGuid, file);
+                            sendAccepted = true;
+                        }
+                        attachmentsSentDirectly = true;
                         await RefreshChatsAsync();
                         chat = FindExistingChat(recipients);
+                        if (chat == null) chat = await _client.FindDirectChatAsync(wireRecipients[0], service);
+                        if (chat == null) chat = new ChatItem
+                        {
+                            Guid = inferredGuid,
+                            Title = recipient,
+                            ParticipantSummary = recipient,
+                            ParticipantAddresses = new List<string> { wireRecipients[0] },
+                            Service = service,
+                            Initials = "?"
+                        };
+                    }
+                    else
+                    {
+                        chat = await _client.CreateChatAsync(wireRecipients, message, _composeService);
+                        sendAccepted = true;
+                        if (chat == null || string.IsNullOrWhiteSpace(chat.Guid))
+                        {
+                            await RefreshChatsAsync();
+                            chat = FindExistingChat(recipients);
+                        }
                     }
                 }
                 else if (!string.IsNullOrWhiteSpace(message))
@@ -957,7 +997,7 @@ namespace WpBlueBubbles
                     sendAccepted = true;
                 }
                 if (chat == null || string.IsNullOrWhiteSpace(chat.Guid)) throw new InvalidOperationException("The server accepted the message but did not return the conversation.");
-                foreach (var file in _sharedFiles.ToList())
+                if (!attachmentsSentDirectly) foreach (var file in _sharedFiles.ToList())
                 {
                     await _client.SendAttachmentAsync(chat.Guid, file);
                     sendAccepted = true;
@@ -1020,6 +1060,18 @@ namespace WpBlueBubbles
             if (value.IndexOf('@') >= 0) return value.Trim().ToLowerInvariant();
             var digits = new string(value.Where(char.IsDigit).ToArray());
             return digits.Length == 11 && digits.StartsWith("1") ? digits.Substring(1) : digits.Length > 10 ? digits.Substring(digits.Length - 10) : digits;
+        }
+
+        private static string CanonicalizeRecipient(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+            var trimmed = value.Trim();
+            if (trimmed.IndexOf('@') >= 0) return trimmed.ToLowerInvariant();
+            var digits = new string(trimmed.Where(char.IsDigit).ToArray());
+            if (digits.Length == 10) return "+1" + digits;
+            if (digits.Length == 11 && digits.StartsWith("1")) return "+" + digits;
+            if (trimmed.StartsWith("+", StringComparison.Ordinal) && digits.Length > 0) return "+" + digits;
+            return trimmed;
         }
 
         private void OpenConversation(ChatItem chat)
@@ -1915,6 +1967,8 @@ namespace WpBlueBubbles
                 _contactNames = ContactsService.BuildNames(contacts);
                 _contactImages = ContactsService.BuildImages(contacts);
                 _contactTileImages = ContactsService.BuildTileImages(contacts);
+                foreach (var contact in contacts)
+                    NotificationBridge.SetContactName(contact.Address, contact.DisplayName);
             }
             catch
             {
@@ -1932,7 +1986,7 @@ namespace WpBlueBubbles
             var chatGuid = app?.TakePendingChatGuid();
             if (!string.IsNullOrWhiteSpace(chatGuid))
             {
-                OpenChatFromNotification(chatGuid);
+                OpenChatFromNotification(chatGuid, app?.TakePendingReply());
             }
             var recipient = app?.TakePendingRecipient();
             if (!string.IsNullOrWhiteSpace(recipient)) OpenComposeForRecipient(recipient);

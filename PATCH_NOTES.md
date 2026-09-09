@@ -3,6 +3,37 @@
 All releases are beta software. Versions before v0.2.0.0 are retained as legacy
 builds and may contain bugs fixed by later releases.
 
+## v0.3.3.2 LiveBubbles
+
+- Keeps the People contact-message integration available for phone and email
+  contacts and uses the exact selected `ServiceUserId` when opening a compose.
+- Resolves notification sender names from the Windows contact list before
+  falling back to server addresses, while preserving the existing preview
+  privacy setting.
+- Adds a foreground quick-reply field and Send action to private-mode message
+  notifications only; preview mode remains unchanged.
+- Adds the existing media Save action for videos, writing them to the Videos
+  library without changing video download, playback, or upload behavior.
+
+Validation: Release x86, x64, and ARM builds, 31 offline notification checks,
+the protected multimedia source audit, and package/signature verification.
+
+## v0.3.3.1 LiveBubbles
+
+- Fills the Windows Live Tile with the newest unopened message and its sender
+  when previews are enabled; private mode keeps names and content out of the tile
+  while retaining the unread count.
+- Refreshes tile content when messages are received, chats are read, or the
+  existing preview setting changes. No additional tile setting is added.
+- Allows forwarding an image without a text message to a new one-to-one chat by
+  using the server's canonical direct-chat address.
+- Canonicalizes ten-digit phone numbers and probes BlueBubbles' `any` direct-chat
+  GUIDs, preventing duplicate raw-number chats from routing a forward elsewhere.
+- Keeps the attachment upload and rendering methods unchanged.
+
+Validation: Release x86, x64, and ARM builds succeeded, 31 offline notification
+checks passed, and the protected multimedia source audit passed.
+
 ## v0.3.3.0 LiveBubbles
 
 - Fixes notification startup aborts caused by nullable BlueBubbles fields being

@@ -23,7 +23,15 @@ namespace LiveBubbles.Notifications
         private static string Text(string key) { object value; return Values.TryGetValue(Prefix + key, out value) ? value as string ?? "" : ""; }
         private static long Number(string key) { long value; return long.TryParse(Text(key), out value) ? value : 0; }
         public static bool Enabled { get { return Flag("Enabled"); } }
-        public static bool ShowPreviews { get { return !Values.ContainsKey(Prefix + "Previews") || Flag("Previews"); } set { Values[Prefix + "Previews"] = value; } }
+        public static bool ShowPreviews
+        {
+            get { return !Values.ContainsKey(Prefix + "Previews") || Flag("Previews"); }
+            set
+            {
+                Values[Prefix + "Previews"] = value;
+                try { NotificationPresenter.Refresh(); } catch { }
+            }
+        }
         public static string Status { get { return Text("Status"); } }
         public static string Diagnostics { get { return Text("Diagnostics"); } }
         internal static string Generation { get { return Text("Generation"); } }
@@ -44,6 +52,13 @@ namespace LiveBubbles.Notifications
         {
             Values[Prefix + "ActiveChat"] = chatGuid ?? "";
             Values[Prefix + "ActiveUntil"] = (string.IsNullOrEmpty(chatGuid) ? 0 : NotificationStorage.Now + 45000).ToString();
+        }
+        public static void SetContactName(string address, string displayName)
+        {
+            var key = NotificationRuntime.ContactNameKey(address);
+            if (string.IsNullOrWhiteSpace(key)) return;
+            if (string.IsNullOrWhiteSpace(displayName)) Values.Remove(key);
+            else Values[key] = displayName.Trim();
         }
         public static bool IsMuted(string chatGuid) { return Flag("Muted." + NotificationPresenter.Tag(chatGuid ?? "")); }
         public static void SetMuted(string chatGuid, bool muted)
@@ -228,6 +243,7 @@ namespace LiveBubbles.Notifications
                     var cursor = NotificationStorage.ReadCursor(state, chatGuid);
                     cursor.ReadThrough = Math.Max(cursor.ReadThrough, timestamp);
                     if (cursor.LatestTimestamp <= cursor.ReadThrough) cursor.Unread = false;
+                    if (!cursor.Unread) NotificationStorage.ClearPreview(state, chatGuid);
                     NotificationStorage.SaveCursor(state, chatGuid, cursor);
                     unread = NotificationStorage.Object(state, "chats").Values.Count(v => NotificationStorage.Bool(v.GetObject(), "unread"));
                 }, CancellationToken.None, () =>

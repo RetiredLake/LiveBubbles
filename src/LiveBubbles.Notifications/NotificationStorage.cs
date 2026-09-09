@@ -46,6 +46,18 @@ namespace LiveBubbles.Notifications
         internal static void Put(JsonObject value, string key, long number) { value[key] = JsonValue.CreateNumberValue(number); }
         internal static void Put(JsonObject value, string key, bool flag) { value[key] = JsonValue.CreateBooleanValue(flag); }
 
+        internal static JsonObject ReadSnapshot()
+        {
+            string path = Path.Combine(Folder, "livebubbles-notifications.json");
+            if (!File.Exists(path)) return new JsonObject();
+            try
+            {
+                JsonObject state;
+                return JsonObject.TryParse(File.ReadAllText(path), out state) && state != null ? state : new JsonObject();
+            }
+            catch { return new JsonObject(); }
+        }
+
         internal static async Task<FileStream> LockAsync(string name, CancellationToken token)
         {
             for (int attempt = 0; ; attempt++)
@@ -110,6 +122,45 @@ namespace LiveBubbles.Notifications
                 foreach (var key in chats.OrderBy(pair => Number(pair.Value.GetObject(), "touched")).Take(chats.Count - 2000).Select(pair => pair.Key).ToList())
                 { Put(state, "replayFloor", Math.Max(Number(state, "replayFloor"), Number(chats[key].GetObject(), "latest"))); chats.Remove(key); }
             state["chats"] = chats;
+        }
+
+        internal static void SavePreview(JsonObject state, string chat, string title, string body, long timestamp)
+        {
+            if (state == null || string.IsNullOrWhiteSpace(chat)) return;
+            var chats = Object(state, "chats");
+            var row = Object(chats, chat);
+            Put(row, "previewTitle", Compact(title));
+            Put(row, "previewBody", Compact(body));
+            Put(row, "previewTimestamp", timestamp);
+            chats[chat] = row;
+            state["chats"] = chats;
+        }
+
+        internal static void ClearPreview(JsonObject state, string chat)
+        {
+            if (state == null || string.IsNullOrWhiteSpace(chat)) return;
+            var chats = Object(state, "chats");
+            JsonObject row;
+            if (!chats.ContainsKey(chat) || chats[chat] == null || chats[chat].ValueType != JsonValueType.Object || !TryGetObject(chats, chat, out row)) return;
+            row.Remove("previewTitle"); row.Remove("previewBody"); row.Remove("previewTimestamp");
+            chats[chat] = row;
+            state["chats"] = chats;
+        }
+
+        private static bool TryGetObject(JsonObject value, string key, out JsonObject result)
+        {
+            try
+            {
+                result = value[key].GetObject();
+                return result != null;
+            }
+            catch { result = null; return false; }
+        }
+
+        private static string Compact(string value)
+        {
+            value = (value ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Trim();
+            return value.Length > 512 ? value.Substring(0, 509) + "..." : value;
         }
     }
 }
