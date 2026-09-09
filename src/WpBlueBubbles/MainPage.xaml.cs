@@ -803,7 +803,7 @@ namespace WpBlueBubbles
         {
             if (string.IsNullOrWhiteSpace(recipient)) return;
             OpenCompose();
-            RecipientBox.Text = recipient;
+            RecipientBox.Text = ResolveRecipientAlias(recipient);
         }
 
         public async void OpenChatFromNotification(string chatGuid, string reply = null)
@@ -877,7 +877,7 @@ namespace WpBlueBubbles
         {
             _availabilityTimer.Stop();
             if (_client == null || !_serverCapabilities.CanUsePrivateApi || _composeSelectedChat != null) return;
-            var recipients = ParseRecipients(RecipientBox.Text);
+            var recipients = ResolveRecipientAliases(ParseRecipients(RecipientBox.Text));
             if (recipients.Count == 0) return;
             var generation = ++_availabilityGeneration;
             try
@@ -910,6 +910,44 @@ namespace WpBlueBubbles
                 .Select(value => value.Trim()).Where(value => value.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         }
 
+        private List<string> ResolveRecipientAliases(IEnumerable<string> values)
+        {
+            return (values ?? Enumerable.Empty<string>())
+                .Select(ResolveRecipientAlias)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private string ResolveRecipientAlias(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+            var trimmed = value.Trim();
+
+            // Contact activation and the contact picker already provide the address. Keep
+            // that exact value so a contact with multiple phone numbers is never guessed.
+            var addressMatch = _allContacts.FirstOrDefault(contact =>
+                string.Equals((contact.Address ?? string.Empty).Trim(), trimmed, StringComparison.OrdinalIgnoreCase));
+            if (addressMatch != null && !string.IsNullOrWhiteSpace(addressMatch.Address)) return addressMatch.Address.Trim();
+
+            // The recipient suggestions display a chat title, which can be a contact name
+            // or a name/address pair. Resolve those labels before anything reaches chat/new.
+            var titleMatch = _allContacts.FirstOrDefault(contact =>
+                string.Equals((contact.Title ?? string.Empty).Trim(), trimmed, StringComparison.OrdinalIgnoreCase));
+            if (titleMatch != null && !string.IsNullOrWhiteSpace(titleMatch.Address)) return titleMatch.Address.Trim();
+
+            var nameAddresses = _allContacts
+                .Where(contact => string.Equals((contact.DisplayName ?? string.Empty).Trim(), trimmed, StringComparison.OrdinalIgnoreCase))
+                .Select(contact => (contact.Address ?? string.Empty).Trim())
+                .Where(address => address.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            // Only resolve an exact, unambiguous display name. Duplicate names must remain
+            // unresolved so the user can choose the intended number or email explicitly.
+            return nameAddresses.Count == 1 ? nameAddresses[0] : trimmed;
+        }
+
         private async void ComposeSend_Click(object sender, RoutedEventArgs e) { await SendComposedMessageAsync(); }
 
         private async void ComposeMessageBox_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -930,7 +968,7 @@ namespace WpBlueBubbles
             var message = ComposeMessageBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(message) && _sharedFiles.Count == 0) { ShowStatus("Write a message or choose an attachment before sending.", true); return; }
             var recipient = RecipientBox.Text.Trim();
-            var recipients = ParseRecipients(recipient);
+            var recipients = ResolveRecipientAliases(ParseRecipients(recipient));
             var wireRecipients = recipients.Select(CanonicalizeRecipient).Where(value => value.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (_composeSelectedChat == null) _composeSelectedChat = FindExistingChat(recipients);
             if (_composeSelectedChat == null && wireRecipients.Count == 1) _composeSelectedChat = await _client.FindDirectChatAsync(wireRecipients[0], _composeService);
@@ -1144,9 +1182,11 @@ namespace WpBlueBubbles
             ContactsOverlay.Visibility = Visibility.Collapsed;
             if (_contactsForCompose)
             {
-                var recipients = ParseRecipients(RecipientBox.Text);
-                if (!recipients.Contains(contact.Address, StringComparer.OrdinalIgnoreCase)) recipients.Add(contact.Address);
+                var recipients = ResolveRecipientAliases(ParseRecipients(RecipientBox.Text));
+                var address = ResolveRecipientAlias(contact.Address);
+                if (!recipients.Contains(address, StringComparer.OrdinalIgnoreCase)) recipients.Add(address);
                 RecipientBox.Text = string.Join(", ", recipients);
+                _contactsForCompose = false;
                 ComposeOverlay.Visibility = Visibility.Visible;
                 RecipientBox.Focus(FocusState.Programmatic);
             }

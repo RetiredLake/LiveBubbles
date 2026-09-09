@@ -3,6 +3,25 @@
 All releases are beta software. Versions before v0.2.0.0 are retained as legacy
 builds and may contain bugs fixed by later releases.
 
+## v0.3.4.0 LiveBubbles
+
+- Resolves an exact contact display name to its unique phone number or email
+  address before availability checks, direct-chat lookup, chat creation, or
+  attachment forwarding.
+- Keeps contact-picker selections address-based and removes stale compose
+  contact-selection state after a contact is added.
+- Forwards to names such as `GriffinDragon88` through the matching Windows
+  contact address instead of sending the display name as a literal recipient.
+
+People contact activation remains registered for the `telephone` and
+`retiredlake.com` services. The People UI controls whether those actions are
+shown for a contact; Windows' current People/Outlook experience does not expose
+every legacy UWP contact-message action. Notification quick reply remains
+available only in private preview mode, as previously specified.
+
+Validation: Release x86, x64, and ARM builds, 31 offline notification checks,
+the protected multimedia source audit, and package/signature verification.
+
 ## v0.3.3.2 LiveBubbles
 
 - Keeps the People contact-message integration available for phone and email

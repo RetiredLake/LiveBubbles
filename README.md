@@ -30,10 +30,11 @@ mute, and previews enabled by default with a private mode switch. No Firebase/WN
 Background wake and delivery remain best-effort until real Lumia validation is complete.
 See [notification architecture and validation](docs/notifications-v0.3-plan.md).
 
-The v0.3.3.2 hotfix keeps the People contact action aligned with the selected
-phone or email, resolves local contact names in notifications, adds private-mode
-quick reply, and safely saves received videos to the Videos library. It includes
-the message-aware Live Tile and direct image-only forwarding fixes from v0.3.3.1.
+The v0.3.4.0 release resolves contact display names to their canonical phone
+numbers or email addresses before sending. This keeps contact-picker composition
+and forwarding address-based, including image-only forwards. People contact
+activation remains registered for phone and email contacts; Windows decides when
+that action is shown in the People experience.
 
 ## Requirements
 
@@ -91,7 +92,7 @@ clients takes priority while notifications are validated.
 
 ## Status
 
-The current release is **v0.3.3.2 LiveBubbles**, based on v0.3.2.5. Builds from v0.1.6.0 through v0.1.9.9
+The current release is **v0.3.4.0 LiveBubbles**, based on v0.3.2.5. Builds from v0.1.6.0 through v0.1.9.9
 are published as legacy betas for testing and historical preservation.
 
 The v0.2 series stores growing per-chat state in files rather than the

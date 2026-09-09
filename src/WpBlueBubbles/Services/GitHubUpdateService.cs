@@ -97,7 +97,7 @@ namespace WpBlueBubbles.Services
         private static HttpClient CreateClient()
         {
             var client = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("LiveBubbles/0.3.3.2");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("LiveBubbles/0.3.4.0");
             return client;
         }
 
