@@ -61,7 +61,9 @@ namespace LiveBubbles.Notifications
         private static async Task TestCoreAsync()
         {
             if (!Enabled) throw new InvalidOperationException("Enable notifications before testing the connection.");
-            using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(45)))
+            // The server may advertise a 60-second Engine.IO heartbeat. Allow
+            // one full interval plus startup margin before declaring failure.
+            using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(90)))
             {
                 try
                 {

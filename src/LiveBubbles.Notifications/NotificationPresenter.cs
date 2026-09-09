@@ -43,7 +43,7 @@ namespace LiveBubbles.Notifications
                     if (NotificationBridge.ShowPreviews)
                     {
                         body = NotificationStorage.String(message, "text");
-                        if (string.IsNullOrWhiteSpace(body)) body = message.GetNamedArray("attachments", new JsonArray()).Count > 0 ? "New attachment" : "New message";
+                        if (string.IsNullOrWhiteSpace(body)) body = NotificationStorage.Array(message, "attachments").Count > 0 ? "New attachment" : "New message";
                     }
                     Show(NotificationBridge.ShowPreviews && !string.IsNullOrWhiteSpace(title) ? title : "LiveBubbles", body, chat);
                 }

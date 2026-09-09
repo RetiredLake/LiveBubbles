@@ -3,6 +3,19 @@
 All releases are beta software. Versions before v0.2.0.0 are retained as legacy
 builds and may contain bugs fixed by later releases.
 
+## v0.3.3.0 LiveBubbles
+
+- Fixes notification startup aborts caused by nullable BlueBubbles fields being
+  read with strict WinRT JSON type getters.
+- Treats missing or type-mismatched notification fields as absent, allowing
+  reconciliation to finish across the full server response.
+- Requires the Developer connection test to observe a real background socket
+  broker callback before it reports success or shows its local toast.
+- Keeps the multimedia and foreground message paths unchanged.
+
+Validation: 31 offline notification checks passed, the protected multimedia
+source audit passed, and real-server background notification testing passed.
+
 ## v0.3.2.5 LiveBubbles
 
 - Reclaims the socket activity object once per background callback so a stale

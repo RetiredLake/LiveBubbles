@@ -195,7 +195,7 @@ namespace LiveBubbles.Notifications
             var message = parts[1].GetObject();
             // Reactions, receipts, and group maintenance are not new chat messages.
             if (NotificationStorage.Number(message, "itemType") != 0 || !string.IsNullOrEmpty(NotificationStorage.String(message, "associatedMessageGuid"))) return;
-            foreach (var value in message.GetNamedArray("chats", new JsonArray()))
+            foreach (var value in NotificationStorage.Array(message, "chats"))
             {
                 if (value.ValueType != JsonValueType.Object) continue;
                 var chat = value.GetObject();
@@ -219,7 +219,7 @@ namespace LiveBubbles.Notifications
                     using (var response = await client.PostAsync(ServerUri(false), content, token))
                     {
                         response.EnsureSuccessStatusCode();
-                        var data = JsonObject.Parse(await response.Content.ReadAsStringAsync()).GetNamedArray("data", new JsonArray());
+                        var data = NotificationStorage.Array(JsonObject.Parse(await response.Content.ReadAsStringAsync()), "data");
                         bool allOld = true;
                         foreach (var value in data)
                         {

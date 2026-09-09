@@ -13,10 +13,35 @@ namespace LiveBubbles.Notifications
     {
         internal static long Now { get { return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); } }
         internal static string Folder { get { return ApplicationData.Current.LocalFolder.Path; } }
-        internal static string String(JsonObject value, string key) { return value.GetNamedString(key, ""); }
-        internal static long Number(JsonObject value, string key) { return (long)value.GetNamedNumber(key, 0); }
-        internal static JsonObject Object(JsonObject value, string key) { return value.GetNamedObject(key, new JsonObject()); }
-        internal static bool Bool(JsonObject value, string key) { return value.GetNamedBoolean(key, false); }
+        // Optional BlueBubbles fields are not type-stable across server
+        // versions. Null values (for example associatedMessageGuid and
+        // dateRead) must be treated as missing instead of throwing a WinRT
+        // InvalidOperationException during notification reconciliation.
+        internal static string String(JsonObject value, string key)
+        {
+            if (value == null || !value.ContainsKey(key) || value[key] == null || value[key].ValueType != JsonValueType.String) return "";
+            try { return value[key].GetString(); } catch { return ""; }
+        }
+        internal static long Number(JsonObject value, string key)
+        {
+            if (value == null || !value.ContainsKey(key) || value[key] == null || value[key].ValueType != JsonValueType.Number) return 0;
+            try { return (long)value[key].GetNumber(); } catch { return 0; }
+        }
+        internal static JsonObject Object(JsonObject value, string key)
+        {
+            if (value == null || !value.ContainsKey(key) || value[key] == null || value[key].ValueType != JsonValueType.Object) return new JsonObject();
+            try { return value[key].GetObject(); } catch { return new JsonObject(); }
+        }
+        internal static JsonArray Array(JsonObject value, string key)
+        {
+            if (value == null || !value.ContainsKey(key) || value[key] == null || value[key].ValueType != JsonValueType.Array) return new JsonArray();
+            try { return value[key].GetArray(); } catch { return new JsonArray(); }
+        }
+        internal static bool Bool(JsonObject value, string key)
+        {
+            if (value == null || !value.ContainsKey(key) || value[key] == null || value[key].ValueType != JsonValueType.Boolean) return false;
+            try { return value[key].GetBoolean(); } catch { return false; }
+        }
         internal static void Put(JsonObject value, string key, string text) { value[key] = JsonValue.CreateStringValue(text ?? ""); }
         internal static void Put(JsonObject value, string key, long number) { value[key] = JsonValue.CreateNumberValue(number); }
         internal static void Put(JsonObject value, string key, bool flag) { value[key] = JsonValue.CreateBooleanValue(flag); }
@@ -64,7 +89,7 @@ namespace LiveBubbles.Notifications
         {
             var row = Object(Object(state, "chats"), chat);
             var cursor = new NotificationCursor { ReadThrough = Number(row, "readThrough"), Unread = Bool(row, "unread"), LatestTimestamp = Number(row, "latest"), ReplayFloor = Number(row, "floor") };
-            foreach (var value in row.GetNamedArray("seen", new JsonArray()))
+            foreach (var value in Array(row, "seen"))
             {
                 if (value.ValueType != JsonValueType.String) continue;
                 var id = value.GetString(); if (cursor.Seen.Add(id)) { cursor.Order.Enqueue(id); cursor.SeenTimes[id] = Number(Object(row, "times"), id); }
