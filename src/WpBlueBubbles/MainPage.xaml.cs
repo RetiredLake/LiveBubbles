@@ -93,6 +93,9 @@ namespace WpBlueBubbles
         public MainPage()
         {
             InitializeComponent();
+#if MICROSOFT_STORE
+            UpdateControls.Visibility = Visibility.Collapsed;
+#endif
             _compactChatTemplate = ChatsList.ItemTemplate;
             _compactMessageTemplate = MessagesList.ItemTemplate;
             _inputPane = InputPane.GetForCurrentView();
