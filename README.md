@@ -2,6 +2,15 @@
 
 ![LiveBubbles logo](src/WpBlueBubbles/Assets/Square150x150Logo.scale-200.png)
 
+<p>
+  <a href="https://apps.microsoft.com/detail/9PG58LJF49RP">
+    <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Get it from Microsoft" height="48">
+  </a>
+  <a href="https://store.live.net.co/app/825">
+    <img src="https://edge.live.net.co/images/store/2025_GetButton_SmallBlack.png" alt="Get LiveBubbles from Live Store" height="48">
+  </a>
+</p>
+
 LiveBubbles (formerly WpBlueBubbles) is an unofficial, native classic UWP client for connecting Windows
 10 Mobile and Windows PCs to a [BlueBubbles](https://bluebubbles.app/) server.
 It brings a Microsoft Messenger-inspired interface to Windows Phone while using
